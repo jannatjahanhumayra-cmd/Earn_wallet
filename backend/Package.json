@@ -1,1 +1,21 @@
-backend/package.json
+
+{
+  "name": "watch-earn-backend",
+  "version": "1.0.0",
+  "description": "Watch & Earn Telegram Mini App Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "firebase-admin": "^12.0.0",
+    "@tma.js/init-data": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
