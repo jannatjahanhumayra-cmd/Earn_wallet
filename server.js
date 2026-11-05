@@ -14,7 +14,8 @@ app.use(express.static('public'));
 try {
   let serviceAccount;
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    let rawEnv = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+    serviceAccount = JSON.parse(rawEnv);
   } else {
     serviceAccount = require('./serviceAccountKey.json');
   }
@@ -27,14 +28,29 @@ try {
   console.error('⚠️ Firebase Initialization Error:', error.message);
 }
 
-const db = admin.firestore();
-
-// Basic Test Route
+// Basic Health Check Route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Watch & Earn Server is running smoothly!' });
+  res.json({ success: true, message: 'Server is running smoothly!' });
 });
 
-// Server Port Setup
+// Admin Stats API Example
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      stats: {
+        totalUsers: 0,
+        totalEarnings: 0.00,
+        totalWithdrawals: 0.00,
+        pendingWithdrawals: 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
