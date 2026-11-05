@@ -17,7 +17,8 @@ def connect_firebase():
     )
 
     if not firebase_json:
-        return False
+        print("Firebase credentials not configured")
+        return
 
     try:
         service_account = json.loads(firebase_json)
@@ -27,11 +28,13 @@ def connect_firebase():
             firebase_admin.initialize_app(cred)
 
         db = firestore.client()
-        return True
+        print("Firebase connected successfully")
 
     except Exception as error:
-        print("Firebase connection error:", error)
-        return False
+        print("Firebase error:", error)
+
+
+connect_firebase()
 
 
 @app.route("/")
@@ -48,8 +51,6 @@ def health():
 
 
 if __name__ == "__main__":
-    connect_firebase()
-
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 5000))
