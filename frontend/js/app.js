@@ -1,47 +1,65 @@
-// Telegram WebApp initialize
 const tg = window.Telegram.WebApp;
 tg.expand(); // ফুল স্ক্রিন
 
-const greetingEl = document.getElementById('greeting');
-const statusEl = document.getElementById('status');
+// DOM Elements
+const userNameEl = document.getElementById('user-name');
+const userAvatarEl = document.getElementById('user-avatar');
+const balanceEl = document.getElementById('balance-amount');
+const todayEarnEl = document.getElementById('today-earn');
+const totalEarnEl = document.getElementById('total-earn');
 
-async function authenticateUser() {
-  // যদি Telegram WebApp এর বাইরে ওপেন করা হয় (যেমন PC ব্রাউজার)
+// Stats Elements
+const statRefs = document.getElementById('stat-refs');
+const statTasks = document.getElementById('stat-tasks');
+const statPending = document.getElementById('stat-pending');
+const statWithdrawn = document.getElementById('stat-withdrawn');
+
+async function initApp() {
   if (!tg.initData) {
-    statusEl.innerText = "⚠️ Please open this inside Telegram App.";
-    greetingEl.innerText = "Hello, Guest";
+    userNameEl.innerText = "Guest Mode";
     return;
   }
 
   try {
-    // Backend-এ InitData পাঠানো (যা telegramAuth মিডলওয়্যার ভেরিফাই করবে)
-    const response = await fetch('/api/auth', {
+    // Telegram Auth Call
+    const res = await fetch('/api/auth', {
       method: 'POST',
       headers: {
-        'Authorization': `tma ${tg.initData}`,
+        'Authorization': 'tma ' + tg.initData,
         'Content-Type': 'application/json'
       }
     });
-
-    const result = await response.json();
-
+    
+    const result = await res.json();
+    
     if (result.success) {
       const user = result.data;
-      greetingEl.innerText = `Hello, ${user.firstName || 'User'}! 👋`;
-      statusEl.innerText = `Balance: ৳ ${user.balance} | Status: Logged In`;
-      statusEl.style.color = "#4ade80"; // Green
       
-      console.log("User Data:", user);
+      // Update DOM with User Data
+      userNameEl.innerText = user.firstName || 'User';
+      if (user.telegramId) {
+        // ডামি অ্যাভাটার (পরে চাইলে টেলিগ্রাম API থেকে আসল ছবি আনা যাবে)
+        userAvatarEl.src = `https://ui-avatars.com/api/?name=${user.firstName || 'U'}&background=ff6600&color=fff`;
+      }
+      
+      // Update Balance
+      balanceEl.innerText = `৳ ${user.balance || 0}`;
+      todayEarnEl.innerText = `৳ ${user.todayEarnings || 0}`;
+      totalEarnEl.innerText = `৳ ${user.totalEarnings || 0}`;
+      
+      // Update Stats
+      statRefs.innerText = user.referralsCount || 0;
+      statTasks.innerText = user.completedTasks || 0;
+      statPending.innerText = user.pendingTasks || 0;
+      statWithdrawn.innerText = `৳ ${user.withdrawnAmount || 0}`;
+      
     } else {
-      throw new Error(result.error || "Auth failed");
+      console.error("Auth failed:", result.error);
     }
   } catch (error) {
-    console.error("Auth Error:", error);
-    greetingEl.innerText = "Authentication Failed";
-    statusEl.innerText = "Error: " + error.message;
-    statusEl.style.color = "#ef4444"; // Red
+    console.error("Network error:", error);
   }
 }
 
-// Run on load
-authenticateUser();
+// Run
+initApp();
