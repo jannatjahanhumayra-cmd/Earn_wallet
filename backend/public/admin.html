@@ -11,7 +11,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
     body { background: var(--bg); color: var(--text); padding-bottom: 20px; }
 
-    /* Header & Tabs */
     .header { background: var(--card); padding: 15px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
     .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .header-top h1 { font-size: 18px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
@@ -21,19 +20,16 @@
     .tab-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
 
-    /* Container */
     .container { padding: 20px; }
     .tab-content { display: none; animation: fadeIn 0.3s; }
     .tab-content.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Stats Grid */
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
     .stat-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
     .stat-card h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
     .stat-card h2 { font-size: 20px; font-weight: 700; }
 
-    /* Forms & Inputs */
     .form-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
     .form-card h3 { color: var(--primary); font-size: 15px; margin-bottom: 15px; }
     .form-group { margin-bottom: 15px; }
@@ -43,7 +39,6 @@
     .btn-primary { background: var(--primary); color: #000; }
     .btn-danger { background: var(--danger); color: #fff; }
 
-    /* Cards (Users, Ads, Tasks) */
     .item-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
     .card-header { display: flex; justify-content: space-between; align-items: center; }
     .card-title { font-weight: 600; font-size: 15px; color: var(--primary); }
@@ -57,11 +52,9 @@
     .detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
     .detail-row span:first-child { color: var(--muted); }
     
-    /* Action Buttons */
     .action-row { display: flex; gap: 10px; margin-top: 15px; }
     .btn-small { padding: 8px 12px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; flex: 1; }
 
-    /* Loader */
     .loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 999; }
     .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -84,7 +77,6 @@
 
   <div class="container">
     
-    <!-- TAB: USERS -->
     <div id="tab-users" class="tab-content active">
       <div class="stats-grid">
         <div class="stat-card"><h3>Total Users</h3><h2 id="stat-total-users">0</h2></div>
@@ -95,7 +87,6 @@
       <div id="users-list"></div>
     </div>
 
-    <!-- TAB: ADS -->
     <div id="tab-ads" class="tab-content">
       <div class="form-card">
         <h3><i class="fa-solid fa-plus"></i> Create New Ad</h3>
@@ -108,7 +99,6 @@
       <div id="ads-list"></div>
     </div>
 
-    <!-- TAB: TASKS -->
     <div id="tab-tasks" class="tab-content">
       <div class="form-card">
         <h3><i class="fa-solid fa-plus"></i> Create New Task</h3>
@@ -124,7 +114,6 @@
       <div id="tasks-list"></div>
     </div>
 
-    <!-- TAB: WITHDRAW -->
     <div id="tab-withdraw" class="tab-content">
       <h3 style="margin-bottom:15px; color:var(--primary);">Withdrawal Requests</h3>
       <div id="withdraw-list"></div>
@@ -138,7 +127,6 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
     
-    // URL অথবা Telegram থেকে initData নেওয়া
     const urlParams = new URLSearchParams(window.location.search);
     const initData = tg.initData || urlParams.get('initData');
     const authHeader = { 'Authorization': 'tma ' + initData, 'Content-Type': 'application/json' };
@@ -157,7 +145,6 @@
       if(tab === 'withdraw') loadWithdrawals();
     }
 
-    // ===== STATS =====
     async function loadStats() {
       const res = await fetch('/api/admin/stats', { headers: authHeader });
       const result = await res.json();
@@ -169,7 +156,6 @@
       }
     }
 
-    // ===== USERS =====
     async function loadUsers() {
       showLoader();
       const res = await fetch('/api/admin/users', { headers: authHeader });
@@ -206,6 +192,8 @@
             </div>
           `;
         });
+      } else {
+        alert(result.error); // Error details
       }
       hideLoader();
     }
@@ -218,7 +206,6 @@
       hideLoader();
     }
 
-    // ===== ADS =====
     async function loadAds() {
       showLoader();
       const res = await fetch('/api/admin/ads', { headers: authHeader });
@@ -266,7 +253,6 @@
       hideLoader();
     }
 
-    // ===== TASKS =====
     async function loadTasks() {
       showLoader();
       const res = await fetch('/api/admin/tasks', { headers: authHeader });
@@ -314,7 +300,6 @@
       hideLoader();
     }
 
-    // ===== WITHDRAWALS =====
     async function loadWithdrawals() {
       showLoader();
       const res = await fetch('/api/admin/withdrawals', { headers: authHeader });
