@@ -1,4 +1,3 @@
-
 (() => {
 const tg = window.Telegram?.WebApp;
 tg?.ready();
@@ -14,13 +13,107 @@ const view = document.getElementById('view');
 const gate = document.getElementById('gateModal');
 const toastEl = document.getElementById('toast');
 
+const BOTTOM_AD_URL = 'https://auctionr.org/4/dbdbab1f1b496a0618bffd138f62f643';
+const CHANNEL_URL = 'https://t.me/EarnWallet_Official';
+const REFERRAL_BONUS = 10;
+const REQUIRED_REFERRALS = 10;
+
 let me = null;
 let page = 'home';
 let pendingAction = null;
-let gateBusy = false;
-
 let adPlacements = {};
 let adPlacementsLoaded = false;
+
+/* =====================================================
+   DIRECT BANNER ADS
+   TOP, MIDDLE এবং BOTTOM Banner এখানে সেটআপ করা হয়েছে।
+   Admin Panel থেকে এগুলো পরিবর্তন করতে হবে না।
+   ===================================================== */
+
+function bannerMarkup(position) {
+  return `
+    <div class="direct-ad-box" style="width:100%;overflow:hidden;text-align:center;margin:12px 0;padding:8px 0;">
+      <small style="display:block;color:#9ba9c5;font-size:10px;margin-bottom:5px;">ADVERTISEMENT</small>
+      <div class="direct-banner" data-direct-banner="${position}"></div>
+    </div>
+  `;
+}
+
+function mountBannerAds(scope = document) {
+  scope.querySelectorAll('[data-direct-banner]').forEach(container => {
+    if (container.dataset.loaded === 'yes') return;
+
+    container.dataset.loaded = 'yes';
+
+    const frame = document.createElement('iframe');
+    frame.title = 'Sponsored Banner Advertisement';
+    frame.width = '728';
+    frame.height = '90';
+    frame.loading = 'lazy';
+    frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms');
+    frame.style.cssText = 'width:728px;max-width:100%;height:90px;border:0;display:block;margin:auto;background:#fff;';
+
+    /* Adsterra Banner Code: TOP / MIDDLE / BOTTOM */
+    frame.srcdoc = `<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0;padding:0;overflow:hidden;text-align:center}</style>
+</head>
+<body>
+<script>
+  atOptions = {
+    'key' : '677193ecff90bdd9318829caf0f37774',
+    'format' : 'iframe',
+    'height' : 90,
+    'width' : 728,
+    'params' : {}
+  };
+<\/script>
+<script src="https://bicea.org/22/677193ecff90bdd9318829caf0f37774"><\/script>
+</body>
+</html>`;
+
+    container.appendChild(frame);
+  });
+}
+
+/* Bottom Direct Link Advertisement */
+document.getElementById('bottomAdLink').onclick = () => {
+  if (tg?.openLink) {
+    tg.openLink(BOTTOM_AD_URL);
+  } else {
+    window.open(BOTTOM_AD_URL, '_blank', 'noopener');
+  }
+};
+
+/* Telegram Channel Button */
+function channelButton() {
+  return `
+    <button type="button" id="channelBtn" class="secondary-btn full"
+      style="margin-top:12px;">
+      ✈ Join EarnWallet Official Channel
+    </button>
+  `;
+}
+
+function connectChannelButton() {
+  const btn = document.getElementById('channelBtn');
+  if (!btn) return;
+
+  btn.onclick = () => {
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(CHANNEL_URL);
+    } else {
+      window.open(CHANNEL_URL, '_blank', 'noopener');
+    }
+  };
+}
+
+/* =====================================================
+   ADMIN CONTROLLED GATE PLACEMENT
+   শুধু Gate Advertisement আগের মতো Admin Panel থেকে আসবে।
+   ===================================================== */
 
 async function loadAdPlacements(force = false) {
   if (adPlacementsLoaded && !force) return adPlacements;
@@ -35,10 +128,6 @@ async function loadAdPlacements(force = false) {
   }
 
   return adPlacements;
-}
-
-function adSlotMarkup(slot, label = 'Advertisement') {
-  return `<div class="ad-slot" data-ad-slot="${esc(slot)}"><small>${esc(label.toUpperCase())}</small><div class="ad-placeholder">Advertisement</div></div>`;
 }
 
 function hydrateAdSlots(scope = document) {
@@ -144,7 +233,7 @@ function setActive() {
 }
 
 function shell(title, sub, content) {
-  return `${adSlotMarkup('middle', 'Middle Advertisement')}
+  return `${bannerMarkup('middle')}
     <h1 class="page-title">${title}</h1>
     <p class="page-sub">${sub || ''}</p>
     ${content}`;
@@ -166,6 +255,8 @@ async function loadPage(p) {
 
     await loadAdPlacements();
     hydrateAdSlots(view);
+    mountBannerAds(view);
+    connectChannelButton();
   } catch (e) {
     view.innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="secondary-btn" onclick="loadPage(page)">Try again</button></div>`;
   }
@@ -176,40 +267,59 @@ async function refreshMe() {
   return me;
 }
 
+/* HOME PAGE */
 async function home() {
   await refreshMe();
 
-  view.innerHTML = `${adSlotMarkup('top', 'Top Advertisement')}
-  <div class="balance-card">
-    <div class="eyebrow">TOTAL BALANCE</div>
-    <div class="balance">${money(me.balance)}</div>
-    <div class="balance-stats">
-      <div><small>Today's Earning</small><b>${money(me.todayEarnings)}</b></div>
-      <div><small>Total Earning</small><b>${money(me.totalEarnings)}</b></div>
+  view.innerHTML = `
+    ${bannerMarkup('top')}
+
+    <div class="balance-card">
+      <div class="eyebrow">TOTAL BALANCE</div>
+      <div class="balance">${money(me.balance)}</div>
+      <div class="balance-stats">
+        <div><small>Today's Earning</small><b>${money(me.todayEarnings)}</b></div>
+        <div><small>Total Earning</small><b>${money(me.totalEarnings)}</b></div>
+      </div>
     </div>
-  </div>
 
-  <div class="stat-grid">
-    <div class="stat-card"><div class="stat-icon">♧</div><b>${Number(me.referralsCount || 0)}</b><small>Successful Referrals</small></div>
-    <div class="stat-card"><div class="stat-icon">✓</div><b>${Number(me.completedTasks || 0)}</b><small>Completed Tasks</small></div>
-    <div class="stat-card"><div class="stat-icon">◷</div><b>${Number(me.pendingTasks || 0)}</b><small>Pending Tasks</small></div>
-    <div class="stat-card"><div class="stat-icon">▣</div><b>${money(me.withdrawnAmount)}</b><small>Withdrawn</small></div>
-  </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-icon">♧</div><b>${Number(me.referralsCount || 0)}</b><small>Successful Referrals</small></div>
+      <div class="stat-card"><div class="stat-icon">✓</div><b>${Number(me.completedTasks || 0)}</b><small>Completed Tasks</small></div>
+      <div class="stat-card"><div class="stat-icon">◷</div><b>${Number(me.pendingTasks || 0)}</b><small>Pending Tasks</small></div>
+      <div class="stat-card"><div class="stat-icon">▣</div><b>${money(me.withdrawnAmount)}</b><small>Withdrawn</small></div>
+    </div>
 
-  <div class="section-head"><h2>Earn Money</h2><small>Choose an activity</small></div>
+    ${bannerMarkup('middle')}
 
-  <div class="feature-grid">
-    ${feature('▶', 'Watch Ads', 'Watch sponsored ads', 'ads')}
-    ${feature('☷', 'Complete Tasks', 'Earn from tasks', 'tasks')}
-    ${feature('♧', 'Invite Friends', 'Referral rewards', 'referral')}
-    ${feature('▣', 'Withdraw', 'Request payout', 'wallet')}
-    ${feature('◷', 'History', 'Your transactions', 'history')}
-    ${feature('◉', 'My Profile', 'Account settings', 'profile')}
-  </div>`;
+    <div class="panel" style="margin-top:12px">
+      <h3 style="margin-top:0">Referral Rewards</h3>
+      <p class="muted">প্রতি ১টি সফল Referral-এর জন্য ৳১০ বোনাস।</p>
+      <p class="muted">১০টি সফল Referral সম্পন্ন হলে Withdrawal করার যোগ্যতা অর্জন করবে।</p>
+      <button class="primary-btn full" id="homeReferralBtn">Invite Friends</button>
+    </div>
+
+    <div class="section-head"><h2>Earn Money</h2><small>Choose an activity</small></div>
+
+    <div class="feature-grid">
+      ${feature('▶', 'Watch Ads', 'Watch sponsored ads', 'ads')}
+      ${feature('☷', 'Complete Tasks', 'Earn from tasks', 'tasks')}
+      ${feature('♧', 'Invite Friends', 'Referral rewards', 'referral')}
+      ${feature('▣', 'Withdraw', 'Request payout', 'wallet')}
+      ${feature('◷', 'History', 'Your transactions', 'history')}
+      ${feature('◉', 'My Profile', 'Account settings', 'profile')}
+    </div>
+
+    ${channelButton()}
+  `;
 
   view.querySelectorAll('[data-go]').forEach(b => {
     b.onclick = () => gateThen(() => loadPage(b.dataset.go));
   });
+
+  document.getElementById('homeReferralBtn').onclick = () => {
+    gateThen(() => loadPage('referral'));
+  };
 }
 
 function feature(icon, title, sub, to) {
@@ -219,6 +329,7 @@ function feature(icon, title, sub, to) {
   </button>`;
 }
 
+/* WATCH ADS PAGE */
 async function adsPage() {
   const ads = await api('/api/ads');
 
@@ -283,6 +394,7 @@ async function startAd(id) {
           toast(`Reward added: ${money(done.reward)}`);
           await refreshMe();
           await adsPage();
+          mountBannerAds(view);
         } catch (e) {
           toast(e.message);
         }
@@ -293,6 +405,7 @@ async function startAd(id) {
   }
 }
 
+/* TASKS PAGE */
 async function tasksPage() {
   const tasks = await api('/api/tasks');
 
@@ -321,19 +434,13 @@ async function tasksPage() {
 
   view.querySelectorAll('[data-task]').forEach(b => {
     b.onclick = () => gateThen(() => {
-      taskSubmit(
-        b.dataset.task,
-        b.dataset.url,
-        b.dataset.proof === '1'
-      );
+      taskSubmit(b.dataset.task, b.dataset.url, b.dataset.proof === '1');
     });
   });
 }
 
 async function taskSubmit(id, url, proofRequired) {
-  if (url && /^https?:\/\//i.test(url)) {
-    tg?.openLink(url);
-  }
+  if (url && /^https?:\/\//i.test(url)) tg?.openLink(url);
 
   const proof = prompt(
     proofRequired
@@ -352,12 +459,13 @@ async function taskSubmit(id, url, proofRequired) {
 
     toast('Task submitted for review.');
     await tasksPage();
+    mountBannerAds(view);
   } catch (e) {
     toast(e.message);
   }
 }
 
-// REFERRAL PAGE
+/* REFERRAL PAGE */
 async function referralPage() {
   const d = await api('/api/referrals');
 
@@ -365,7 +473,7 @@ async function referralPage() {
   const successful = Number(d.successfulCount ?? d.count ?? 0);
   const total = Number(d.totalCount || 0);
   const inProgress = Number(d.inProgressCount || 0);
-  const required = Number(d.requiredSuccessfulReferrals || 10);
+  const required = Number(d.requiredSuccessfulReferrals || REQUIRED_REFERRALS);
 
   const referralRows = (d.referrals || []).map(r => {
     const done = Math.min(
@@ -392,9 +500,7 @@ async function referralPage() {
             </p>
           </div>
           <span class="pill" style="${
-            successfulStatus
-              ? 'background:#123d35;color:#79e5c3'
-              : ''
+            successfulStatus ? 'background:#123d35;color:#79e5c3' : ''
           }">
             ${successfulStatus ? 'Successful' : 'In Progress'}
           </span>
@@ -416,8 +522,15 @@ async function referralPage() {
 
   view.innerHTML = shell(
     'Invite & Earn',
-    'A referral becomes successful after the invited user completes 20 ads, each for at least 20 seconds.',
+    'Invite friends and earn referral rewards.',
     `
+      <div class="panel" style="margin-bottom:12px">
+        <h3 style="margin-top:0">Referral Bonus</h3>
+        <div class="amount">${money(REFERRAL_BONUS)}</div>
+        <p class="muted">প্রতি ১টি সফল Referral-এর জন্য ৳১০।</p>
+        <p class="muted">১০টি সফল Referral হলে Withdrawal আনলক হবে।</p>
+      </div>
+
       <div class="stat-grid">
         <div class="stat-card"><b>${successful}</b><small>Successful referrals</small></div>
         <div class="stat-card"><b>${inProgress}</b><small>In progress</small></div>
@@ -434,7 +547,7 @@ async function referralPage() {
           </div>
         </div>
         <p class="muted" style="font-size:11px;margin:12px 0 0">
-          Referral bonus: ${money(d.bonus)} • Withdrawal unlocks at ${required} successful referrals.
+          Referral bonus: ${money(REFERRAL_BONUS)} • Withdrawal unlocks at ${required} successful referrals.
         </p>
       </div>
 
@@ -445,6 +558,8 @@ async function referralPage() {
           '<div class="empty">No invited users yet. Share your referral link to invite friends.</div>'
         }
       </div>
+
+      ${channelButton()}
     `
   );
 
@@ -467,7 +582,7 @@ async function referralPage() {
   };
 }
 
-// WALLET PAGE
+/* WALLET PAGE */
 async function walletPage() {
   await refreshMe();
 
@@ -478,7 +593,7 @@ async function walletPage() {
   );
 
   const required = Number(
-    referralData.requiredSuccessfulReferrals || 10
+    referralData.requiredSuccessfulReferrals || REQUIRED_REFERRALS
   );
 
   const locked = successful < required;
@@ -508,7 +623,7 @@ async function walletPage() {
         <p class="muted" style="font-size:11px;margin-bottom:0">
           ${
             locked
-              ? `Withdrawal is locked. Complete ${required - successful} more successful referral(s). Each invited user must complete 20 ads, each at least 20 seconds.`
+              ? `Withdrawal is locked. Complete ${required - successful} more successful referral(s).`
               : 'Your referral requirement is complete. Withdrawal is unlocked.'
           }
         </p>
@@ -536,14 +651,14 @@ async function walletPage() {
             <input name="account" required minlength="5" maxlength="120" placeholder="Enter number or wallet address">
           </div>
 
-          <button
-            class="primary-btn full"
-            ${locked ? 'disabled style="opacity:.45;cursor:not-allowed"' : ''}
-          >
+          <button class="primary-btn full"
+            ${locked ? 'disabled style="opacity:.45;cursor:not-allowed"' : ''}>
             ${locked ? 'Locked — Need More Referrals' : 'Submit Withdrawal'}
           </button>
         </form>
       </div>
+
+      ${channelButton()}
     `
   );
 
@@ -570,6 +685,8 @@ async function walletPage() {
 
         toast(d.message || 'Request submitted');
         await walletPage();
+        mountBannerAds(view);
+        connectChannelButton();
       } catch (err) {
         toast(err.message);
       }
@@ -577,6 +694,7 @@ async function walletPage() {
   };
 }
 
+/* HISTORY PAGE */
 async function historyPage() {
   const items = await api('/api/history');
 
@@ -602,6 +720,7 @@ async function historyPage() {
   );
 }
 
+/* PROFILE PAGE */
 async function profilePage() {
   await refreshMe();
 
@@ -656,6 +775,8 @@ async function profilePage() {
       <button class="secondary-btn full profile-history-btn" id="historyBtn">
         View transaction history
       </button>
+
+      ${channelButton()}
     `
   );
 
@@ -664,6 +785,7 @@ async function profilePage() {
   };
 }
 
+/* START APPLICATION */
 async function boot() {
   if (!initData) {
     view.innerHTML = '<div class="empty">Please open EarnWalletBot from your Telegram bot. Direct browser access is not authenticated.</div>';
@@ -680,7 +802,10 @@ async function boot() {
 
     await loadAdPlacements(true);
     await loadPage('home');
+
     hydrateAdSlots(document);
+    mountBannerAds(document);
+    connectChannelButton();
   } catch (e) {
     view.innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="secondary-btn" onclick="location.reload()">Try again</button></div>`;
   }
