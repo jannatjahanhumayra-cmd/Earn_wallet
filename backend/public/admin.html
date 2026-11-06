@@ -7,86 +7,73 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    :root {
-      --bg-main: #121212; --bg-card: #1e1e1e; --bg-hover: #2c2c2c;
-      --primary: #f59e0b; --text-main: #f3f4f6; --text-muted: #9ca3af;
-      --border: #333333; --danger: #ef4444; --success: #10b981;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background: var(--bg-main); color: var(--text-main); padding-bottom: 20px; }
+    :root { --bg: #0f111a; --card: #1a1d2d; --primary: #f59e0b; --text: #fff; --muted: #9ca3af; --border: #2a2d3d; --danger: #ef4444; --success: #10b981; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding-bottom: 20px; }
 
     /* Header & Tabs */
-    .admin-header { background: var(--bg-card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50; }
-    .header-top { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
-    .header-top h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; }
-    .header-top h1 i { color: var(--primary); }
+    .header { background: var(--card); padding: 15px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .header-top h1 { font-size: 18px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
     
-    .tabs { display: flex; overflow-x: auto; border-top: 1px solid var(--border); }
+    .tabs { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px; }
     .tabs::-webkit-scrollbar { display: none; }
-    .tab-btn {
-      flex: 1; padding: 12px 15px; background: none; border: none; color: var(--text-muted);
-      font-weight: 600; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
-    }
-    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: rgba(245, 158, 11, 0.05); }
+    .tab-btn { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
 
-    /* Container & Sections */
+    /* Container */
     .container { padding: 20px; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; animation: fadeIn 0.3s; }
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Stats */
+    /* Stats Grid */
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-    .stat-card { background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
-    .stat-card h3 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
-    .stat-card h2 { font-size: 24px; font-weight: 700; }
+    .stat-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); }
+    .stat-card h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+    .stat-card h2 { font-size: 20px; font-weight: 700; }
 
-    /* Form Elements */
+    /* Forms & Inputs */
+    .form-card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+    .form-card h3 { color: var(--primary); font-size: 15px; margin-bottom: 15px; }
     .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
-    .form-group input, .form-group select {
-      width: 100%; padding: 12px; background: var(--bg-main); border: 1px solid var(--border);
-      color: var(--text-main); border-radius: 8px; font-family: inherit;
-    }
-    .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-    .btn-submit:hover { opacity: 0.9; }
+    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .form-group input, .form-group select { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: #fff; border-radius: 8px; }
+    .btn { padding: 12px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; width: 100%; }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-danger { background: var(--danger); color: #fff; }
 
-    /* User Cards */
-    .user-card { background: var(--bg-card); border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 10px; }
-    .user-card-header { display: flex; justify-content: space-between; margin-bottom: 10px; cursor: pointer; }
-    .user-name { font-weight: 600; font-size: 15px; color: var(--primary); }
-    .user-id { font-size: 12px; color: var(--text-muted); }
-    .user-balance { font-size: 16px; font-weight: bold; color: var(--success); }
-    .user-details { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
-    .user-details.active { display: block; }
+    /* Cards (Users, Ads, Tasks) */
+    .item-card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; }
+    .card-title { font-weight: 600; font-size: 15px; color: var(--primary); }
+    .card-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .badge-green { background: rgba(16,185,129,0.2); color: var(--success); }
+    .badge-red { background: rgba(239,68,68,0.2); color: var(--danger); }
+    
+    .card-details { display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); }
+    .card-details.active { display: block; }
     .detail-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; }
-    .detail-label { color: var(--text-muted); }
-    .detail-value { font-weight: 500; }
-    .action-btns { display: flex; gap: 10px; margin-top: 15px; }
-    .btn-ban { background: var(--danger); color: white; padding: 10px; border-radius: 8px; border: none; flex: 1; font-weight: bold; }
-    .btn-unban { background: var(--success); color: white; padding: 10px; border-radius: 8px; border: none; flex: 1; font-weight: bold; }
-
-    /* Lists (Ads/Tasks) */
-    .item-card { background: var(--bg-card); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
-    .item-card h4 { color: var(--primary); font-size: 14px; margin-bottom: 5px; }
-    .item-card p { font-size: 12px; color: var(--text-muted); }
-    .item-card .badge { background: rgba(16, 185, 129, 0.2); color: var(--success); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+    .detail-row span:first-child { color: var(--muted); }
+    
+    /* Action Buttons */
+    .action-row { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-small { padding: 8px 12px; font-size: 12px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; flex: 1; }
 
     /* Loader */
-    .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 999; }
-    .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 999; }
+    .spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
-  <header class="admin-header">
+  <header class="header">
     <div class="header-top">
       <h1><i class="fa-solid fa-shield-halved"></i> Admin Panel</h1>
-      <span id="admin-status" style="font-size:12px; color:var(--success);">Live</span>
+      <span id="admin-id" style="font-size:12px; color:var(--success);">Verified</span>
     </div>
-    
-    <!-- Tabs -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('users')">Users</button>
       <button class="tab-btn" onclick="switchTab('ads')">Ads</button>
@@ -100,251 +87,271 @@
     <!-- TAB: USERS -->
     <div id="tab-users" class="tab-content active">
       <div class="stats-grid">
-        <div class="stat-card">
-          <h3>Total Users</h3>
-          <h2 id="total-users">0</h2>
-        </div>
-        <div class="stat-card">
-          <h3>Active</h3>
-          <h2 id="active-users">0</h2>
-        </div>
+        <div class="stat-card"><h3>Total Users</h3><h2 id="stat-total-users">0</h2></div>
+        <div class="stat-card"><h3>Active Users</h3><h2 id="stat-active-users">0</h2></div>
+        <div class="stat-card"><h3>Total Balance</h3><h2 id="stat-total-balance">৳ 0</h2></div>
+        <div class="stat-card"><h3>Pending Withdraw</h3><h2 id="stat-pending-withdraw">0</h2></div>
       </div>
-      <div id="users-container">
-        <p style="text-align: center; color: var(--text-muted);">Loading users...</p>
-      </div>
+      <div id="users-list"></div>
     </div>
 
     <!-- TAB: ADS -->
     <div id="tab-ads" class="tab-content">
-      <h3 style="margin-bottom: 15px; color: var(--primary);">Add New Advertisement</h3>
-      <div class="form-group">
-        <label>Ad Title</label>
-        <input type="text" id="ad-title" placeholder="e.g. Daily Bonus Ad">
+      <div class="form-card">
+        <h3><i class="fa-solid fa-plus"></i> Create New Ad</h3>
+        <div class="form-group"><label>Ad Title</label><input type="text" id="ad-title" placeholder="e.g. Daily Bonus"></div>
+        <div class="form-group"><label>Ad URL</label><input type="url" id="ad-url" placeholder="https://..."></div>
+        <div class="form-group"><label>Reward (৳)</label><input type="number" id="ad-reward" placeholder="0.50"></div>
+        <div class="form-group"><label>Duration (Seconds)</label><input type="number" id="ad-duration" placeholder="15"></div>
+        <button class="btn btn-primary" onclick="createAd()">Save Ad</button>
       </div>
-      <div class="form-group">
-        <label>Ad Link (URL)</label>
-        <input type="url" id="ad-url" placeholder="https://...">
-      </div>
-      <div class="form-group">
-        <label>Reward (৳)</label>
-        <input type="number" id="ad-reward" placeholder="0.50">
-      </div>
-      <div class="form-group">
-        <label>Duration (Seconds)</label>
-        <input type="number" id="ad-duration" placeholder="15">
-      </div>
-      <button class="btn-submit" onclick="createAd()">Save Ad</button>
-
-      <h3 style="margin: 25px 0 15px; color: var(--primary);">Existing Ads</h3>
-      <div id="ads-container"></div>
+      <div id="ads-list"></div>
     </div>
 
     <!-- TAB: TASKS -->
     <div id="tab-tasks" class="tab-content">
-      <h3 style="margin-bottom: 15px; color: var(--primary);">Create New Task</h3>
-      <div class="form-group">
-        <label>Task Title</label>
-        <input type="text" id="task-title" placeholder="e.g. Subscribe to Telegram Channel">
+      <div class="form-card">
+        <h3><i class="fa-solid fa-plus"></i> Create New Task</h3>
+        <div class="form-group"><label>Task Title</label><input type="text" id="task-title" placeholder="e.g. Join Telegram Channel"></div>
+        <div class="form-group"><label>Task URL</label><input type="url" id="task-url" placeholder="https://t.me/..."></div>
+        <div class="form-group"><label>Reward (৳)</label><input type="number" id="task-reward" placeholder="2.00"></div>
+        <div class="form-group">
+          <label>Require Screenshot Proof?</label>
+          <select id="task-proof"><option value="no">No (Auto Verify)</option><option value="yes">Yes (Manual Verify)</option></select>
+        </div>
+        <button class="btn btn-primary" onclick="createTask()">Save Task</button>
       </div>
-      <div class="form-group">
-        <label>Task Link (URL)</label>
-        <input type="url" id="task-url" placeholder="https://t.me/yourchannel">
-      </div>
-      <div class="form-group">
-        <label>Reward (৳)</label>
-        <input type="number" id="task-reward" placeholder="2.00">
-      </div>
-      <div class="form-group">
-        <label>Require Screenshot Proof?</label>
-        <select id="task-proof">
-          <option value="no">No (Auto Verify)</option>
-          <option value="yes">Yes (Manual Admin Verify)</option>
-        </select>
-      </div>
-      <button class="btn-submit" onclick="createTask()">Save Task</button>
-
-      <h3 style="margin: 25px 0 15px; color: var(--primary);">Existing Tasks</h3>
-      <div id="tasks-container"></div>
+      <div id="tasks-list"></div>
     </div>
 
     <!-- TAB: WITHDRAW -->
     <div id="tab-withdraw" class="tab-content">
-      <p style="text-align: center; color: var(--text-muted); padding: 20px;">Withdraw requests will appear here (Coming soon).</p>
+      <h3 style="margin-bottom:15px; color:var(--primary);">Withdrawal Requests</h3>
+      <div id="withdraw-list"></div>
     </div>
 
   </div>
 
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-  </div>
+  <div class="loader" id="loader"><div class="spinner"></div></div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
-    const initData = tg.initData;
-    const authHeader = { 'Authorization': 'tma ' + initData };
+    
+    // URL অথবা Telegram থেকে initData নেওয়া
+    const urlParams = new URLSearchParams(window.location.search);
+    const initData = tg.initData || urlParams.get('initData');
+    const authHeader = { 'Authorization': 'tma ' + initData, 'Content-Type': 'application/json' };
 
-    function showLoader() { document.getElementById('loadingOverlay').style.display = 'flex'; }
-    function hideLoader() { document.getElementById('loadingOverlay').style.display = 'none'; }
+    function showLoader() { document.getElementById('loader').style.display = 'flex'; }
+    function hideLoader() { document.getElementById('loader').style.display = 'none'; }
     function switchTab(tab) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
       document.getElementById('tab-' + tab).classList.add('active');
       event.target.classList.add('active');
+      
+      if(tab === 'users') { loadUsers(); loadStats(); }
+      if(tab === 'ads') loadAds();
+      if(tab === 'tasks') loadTasks();
+      if(tab === 'withdraw') loadWithdrawals();
+    }
+
+    // ===== STATS =====
+    async function loadStats() {
+      const res = await fetch('/api/admin/stats', { headers: authHeader });
+      const result = await res.json();
+      if(result.success) {
+        document.getElementById('stat-total-users').innerText = result.data.totalUsers;
+        document.getElementById('stat-active-users').innerText = result.data.activeUsers;
+        document.getElementById('stat-total-balance').innerText = `৳ ${result.data.totalBalance}`;
+        document.getElementById('stat-pending-withdraw').innerText = result.data.pendingWithdraws;
+      }
     }
 
     // ===== USERS =====
     async function loadUsers() {
-      try {
-        const res = await fetch('/api/admin/users', { headers: authHeader });
-        const result = await res.json();
+      showLoader();
+      const res = await fetch('/api/admin/users', { headers: authHeader });
+      const result = await res.json();
+      if(result.success) {
+        const container = document.getElementById('users-list');
+        container.innerHTML = result.data.length === 0 ? '<p style="text-align:center; color:var(--muted);">No users found.</p>' : '';
         
-        if (result.success) {
-          const users = result.data;
-          document.getElementById('total-users').innerText = users.length;
-          document.getElementById('active-users').innerText = users.filter(u => u.status === 'active').length;
-          
-          const container = document.getElementById('users-container');
-          container.innerHTML = users.length === 0 ? '<p style="text-align:center; color:var(--text-muted);">No users yet.</p>' : '';
-          
-          users.forEach(user => {
-            const isBanned = user.status === 'banned';
-            container.innerHTML += `
-              <div class="user-card">
-                <div class="user-card-header" onclick="this.nextElementSibling.classList.toggle('active')">
-                  <div>
-                    <div class="user-name">${user.firstName || 'Unknown'}</div>
-                    <div class="user-id">ID: ${user.telegramId}</div>
-                  </div>
-                  <div style="text-align: right;">
-                    <div class="user-balance">৳ ${user.balance || 0}</div>
-                    <div style="font-size: 11px; color: ${isBanned ? 'var(--danger)' : 'var(--success)'}; font-weight:bold;">${isBanned ? 'BANNED' : 'ACTIVE'}</div>
-                  </div>
+        result.data.forEach(user => {
+          const isBanned = user.status === 'banned';
+          container.innerHTML += `
+            <div class="item-card">
+              <div class="card-header" onclick="this.nextElementSibling.classList.toggle('active')">
+                <div>
+                  <div class="card-title">${user.firstName || 'Unknown'} ${user.lastName || ''}</div>
+                  <div class="card-sub">ID: ${user.telegramId}</div>
                 </div>
-                <div class="user-details">
-                  <div class="detail-row"><span class="detail-label">Username:</span> <span class="detail-value">@${user.username || 'N/A'}</span></div>
-                  <div class="detail-row"><span class="detail-label">Referrals:</span> <span class="detail-value">${user.referralsCount || 0}</span></div>
-                  <div class="detail-row"><span class="detail-label">Tasks Done:</span> <span class="detail-value">${user.completedTasks || 0}</span></div>
-                  <div class="detail-row"><span class="detail-label">Withdrawn:</span> <span class="detail-value">৳ ${user.withdrawnAmount || 0}</span></div>
-                  <div class="action-btns">
-                    ${isBanned 
-                      ? `<button class="btn-unban" onclick="changeStatus('${user.telegramId}', 'active')">Unban</button>`
-                      : `<button class="btn-ban" onclick="changeStatus('${user.telegramId}', 'banned')">Ban User</button>`}
-                  </div>
+                <div style="text-align:right;">
+                  <div style="font-weight:bold; color:var(--success);">৳ ${user.balance || 0}</div>
+                  <span class="badge ${isBanned ? 'badge-red' : 'badge-green'}">${isBanned ? 'BANNED' : 'ACTIVE'}</span>
                 </div>
               </div>
-            `;
-          });
-        }
-      } catch (e) { console.error(e); }
+              <div class="card-details">
+                <div class="detail-row"><span>Username:</span> <span>@${user.username || 'N/A'}</span></div>
+                <div class="detail-row"><span>Total Referrals:</span> <span>${user.referralsCount || 0}</span></div>
+                <div class="detail-row"><span>Tasks Completed:</span> <span>${user.completedTasks || 0}</span></div>
+                <div class="detail-row"><span>Total Withdrawn:</span> <span>৳ ${user.withdrawnAmount || 0}</span></div>
+                <div class="action-row">
+                  ${isBanned 
+                    ? `<button class="btn-small badge-green" onclick="changeStatus('${user.telegramId}', 'active')">Unban User</button>`
+                    : `<button class="btn-small badge-red" onclick="changeStatus('${user.telegramId}', 'banned')">Ban User</button>`}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+      }
+      hideLoader();
     }
 
     async function changeStatus(id, status) {
       if(!confirm(`Are you sure you want to ${status} this user?`)) return;
       showLoader();
-      await fetch('/api/admin/ban', {
-        method: 'POST', headers: { ...authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegramId: id, status })
-      });
+      await fetch('/api/admin/ban', { method: 'POST', headers: authHeader, body: JSON.stringify({ telegramId: id, status }) });
       await loadUsers();
       hideLoader();
     }
 
     // ===== ADS =====
+    async function loadAds() {
+      showLoader();
+      const res = await fetch('/api/admin/ads', { headers: authHeader });
+      const result = await res.json();
+      if(result.success) {
+        const container = document.getElementById('ads-list');
+        container.innerHTML = result.data.length === 0 ? '<p style="text-align:center; color:var(--muted);">No ads created yet.</p>' : '';
+        result.data.forEach(ad => {
+          container.innerHTML += `
+            <div class="item-card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">${ad.title}</div>
+                  <div class="card-sub">Reward: ৳${ad.reward} | Time: ${ad.duration}s</div>
+                </div>
+                <button class="btn-small badge-red" onclick="deleteAd('${ad.id}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          `;
+        });
+      }
+      hideLoader();
+    }
+
     async function createAd() {
       const title = document.getElementById('ad-title').value;
       const url = document.getElementById('ad-url').value;
       const reward = document.getElementById('ad-reward').value;
       const duration = document.getElementById('ad-duration').value;
-      
       if(!title || !url || !reward || !duration) return alert("Fill all fields");
 
       showLoader();
-      const res = await fetch('/api/admin/ads', {
-        method: 'POST', headers: { ...authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, url, reward, duration })
-      });
+      const res = await fetch('/api/admin/ads', { method: 'POST', headers: authHeader, body: JSON.stringify({ title, url, reward, duration }) });
       const result = await res.json();
       alert(result.message || result.error);
-      if(result.success) {
-        document.getElementById('ad-title').value = '';
-        document.getElementById('ad-url').value = '';
-        document.getElementById('ad-reward').value = '';
-        document.getElementById('ad-duration').value = '';
-        loadAds();
-      }
+      if(result.success) { document.getElementById('ad-title').value=''; document.getElementById('ad-url').value=''; document.getElementById('ad-reward').value=''; document.getElementById('ad-duration').value=''; loadAds(); }
       hideLoader();
     }
 
-    async function loadAds() {
-      const res = await fetch('/api/admin/ads', { headers: authHeader });
+    async function deleteAd(id) {
+      if(!confirm("Delete this ad?")) return;
+      showLoader();
+      await fetch(`/api/admin/ads/${id}`, { method: 'DELETE', headers: authHeader });
+      loadAds();
+      hideLoader();
+    }
+
+    // ===== TASKS =====
+    async function loadTasks() {
+      showLoader();
+      const res = await fetch('/api/admin/tasks', { headers: authHeader });
       const result = await res.json();
       if(result.success) {
-        const container = document.getElementById('ads-container');
-        container.innerHTML = result.data.length === 0 ? '<p style="color:var(--text-muted);">No ads created yet.</p>' : '';
-        result.data.forEach(ad => {
+        const container = document.getElementById('tasks-list');
+        container.innerHTML = result.data.length === 0 ? '<p style="text-align:center; color:var(--muted);">No tasks created yet.</p>' : '';
+        result.data.forEach(task => {
           container.innerHTML += `
             <div class="item-card">
-              <h4>${ad.title} <span class="badge">${ad.status}</span></h4>
-              <p>Reward: ৳${ad.reward} | Time: ${ad.duration}s</p>
-              <p style="font-size:10px; margin-top:5px; word-break: break-all;">URL: ${ad.url}</p>
+              <div class="card-header">
+                <div>
+                  <div class="card-title">${task.title}</div>
+                  <div class="card-sub">Reward: ৳${task.reward} | Proof: ${task.requiresProof.toUpperCase()}</div>
+                </div>
+                <button class="btn-small badge-red" onclick="deleteTask('${task.id}')"><i class="fa-solid fa-trash"></i></button>
+              </div>
             </div>
           `;
         });
       }
+      hideLoader();
     }
 
-    // ===== TASKS =====
     async function createTask() {
       const title = document.getElementById('task-title').value;
       const url = document.getElementById('task-url').value;
       const reward = document.getElementById('task-reward').value;
       const requiresProof = document.getElementById('task-proof').value;
-
       if(!title || !url || !reward) return alert("Fill all fields");
 
       showLoader();
-      const res = await fetch('/api/admin/tasks', {
-        method: 'POST', headers: { ...authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, url, reward, requiresProof })
-      });
+      const res = await fetch('/api/admin/tasks', { method: 'POST', headers: authHeader, body: JSON.stringify({ title, url, reward, requiresProof }) });
       const result = await res.json();
       alert(result.message || result.error);
-      if(result.success) {
-        document.getElementById('task-title').value = '';
-        document.getElementById('task-url').value = '';
-        document.getElementById('task-reward').value = '';
-        loadTasks();
-      }
+      if(result.success) { document.getElementById('task-title').value=''; document.getElementById('task-url').value=''; document.getElementById('task-reward').value=''; loadTasks(); }
       hideLoader();
     }
 
-    async function loadTasks() {
-      const res = await fetch('/api/admin/tasks', { headers: authHeader });
+    async function deleteTask(id) {
+      if(!confirm("Delete this task?")) return;
+      showLoader();
+      await fetch(`/api/admin/tasks/${id}`, { method: 'DELETE', headers: authHeader });
+      loadTasks();
+      hideLoader();
+    }
+
+    // ===== WITHDRAWALS =====
+    async function loadWithdrawals() {
+      showLoader();
+      const res = await fetch('/api/admin/withdrawals', { headers: authHeader });
       const result = await res.json();
       if(result.success) {
-        const container = document.getElementById('tasks-container');
-        container.innerHTML = result.data.length === 0 ? '<p style="color:var(--text-muted);">No tasks created yet.</p>' : '';
-        result.data.forEach(task => {
+        const container = document.getElementById('withdraw-list');
+        container.innerHTML = result.data.length === 0 ? '<p style="text-align:center; color:var(--muted);">No withdrawal requests found.</p>' : '';
+        result.data.forEach(w => {
           container.innerHTML += `
             <div class="item-card">
-              <h4>${task.title} <span class="badge">${task.status}</span></h4>
-              <p>Reward: ৳${task.reward} | Proof: ${task.requiresProof}</p>
-              <p style="font-size:10px; margin-top:5px; word-break: break-all;">URL: ${task.url}</p>
+              <div class="card-title">${w.method} - ৳${w.amount}</div>
+              <div class="card-sub">User: ${w.telegramId} | Status: <b>${w.status.toUpperCase()}</b></div>
+              ${w.status === 'pending' ? `
+                <div class="action-row">
+                  <button class="btn-small badge-green" onclick="processWithdraw('${w.id}', 'approved')">Approve</button>
+                  <button class="btn-small badge-red" onclick="processWithdraw('${w.id}', 'rejected')">Reject</button>
+                </div>
+              ` : ''}
             </div>
           `;
         });
       }
+      hideLoader();
+    }
+
+    async function processWithdraw(id, status) {
+      if(!confirm(`Are you sure to mark this as ${status}?`)) return;
+      showLoader();
+      await fetch(`/api/admin/withdrawals/${id}`, { method: 'POST', headers: authHeader, body: JSON.stringify({ status }) });
+      loadWithdrawals();
+      hideLoader();
     }
 
     // Init
-    if(!initData) {
-      alert("Please open inside Telegram.");
-    } else {
-      loadUsers();
-      loadAds();
-      loadTasks();
-    }
+    if(!initData) alert("Warning: initData not found. Please open via Telegram.");
+    else { loadUsers(); loadStats(); }
+
   </script>
 </body>
 </html>
