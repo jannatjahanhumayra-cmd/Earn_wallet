@@ -27,7 +27,6 @@ function initializeFirebase() {
 
   try {
     const serviceAccount = JSON.parse(credentialsJson);
-
     const appInstance = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
@@ -36,7 +35,6 @@ function initializeFirebase() {
     firebaseAuth = admin.auth();
 
     console.log('Firebase Admin initialized successfully.');
-
     return appInstance;
   } catch (error) {
     console.error('Firebase initialization error:', error.message);
@@ -60,8 +58,6 @@ function getAuth() {
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-
-// FIXED FRONTEND DIRECTORY
 const PUBLIC_DIR = path.join(__dirname, 'backend', 'public');
 
 initializeFirebase();
@@ -74,6 +70,27 @@ const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
 const ADMIN_ID = String(process.env.ADMIN_TELEGRAM_ID || '');
 const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW || 100);
 const REFERRAL_BONUS = Number(process.env.REFERRAL_BONUS || 0);
+
+const REQUIRED_REFERRAL_ADS = 20;
+const REQUIRED_SUCCESSFUL_REFERRALS = 10;
+const TELEGRAM_BOT_USERNAME = String(
+  process.env.TELEGRAM_BOT_USERNAME || 'EarnWalle_tBot'
+).replace(/^@/, '');
+
+const PUBLIC_APP_URL = String(
+  process.env.RENDER_EXTERNAL_URL || 'https://earn-wallet-z0ea.onrender.com'
+).replace(/\/$/, '');
+
+const WEBHOOK_SECRET = BOT_TOKEN
+  ? crypto.createHmac('sha256', BOT_TOKEN)
+      .update('EarnWalletBotWebhook2026')
+      .digest('hex')
+      .slice(0, 48)
+  : '';
+
+const WEBHOOK_PATH = WEBHOOK_SECRET
+  ? `/telegram/webhook/${WEBHOOK_SECRET}`
+  : '';
 
 function verifyInitData(initData, botToken) {
   if (!initData || !botToken) return null;
@@ -116,9 +133,12 @@ function verifyInitData(initData, botToken) {
     }
 
     const user = params.get('user');
+    if (!user) return null;
 
-    return user ? JSON.parse(user) : null;
+    const parsedUser = JSON.parse(user);
+    parsedUser._startParam = params.get('start_param') || '';
 
+    return parsedUser;
   } catch (e) {
     console.error('Telegram initData verification:', e.message);
     return null;
@@ -144,7 +164,8 @@ async function telegramAuth(req, res, next) {
     id: String(user.id),
     username: user.username || null,
     firstName: user.first_name || null,
-    lastName: user.last_name || null
+    lastName: user.last_name || null,
+    startParam: user._startParam || ''
   };
 
   next();
@@ -187,10 +208,7 @@ async function requireActiveUser(db, uid) {
   const snap = await userRef(db, uid).get();
 
   if (!snap.exists) throw new Error('USER_NOT_FOUND');
-
-  if (snap.data().status === 'banned') {
-    throw new Error('ACCOUNT_SUSPENDED');
-  }
+  if (snap.data().status === 'banned') throw new Error('ACCOUNT_SUSPENDED');
 
   return snap;
 }
@@ -203,6 +221,174 @@ function todayKey() {
   }).format(d);
 }
 
+function parseReferralPayload(value) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(?:ref_)?(\d{1,20})$/);
+  return match ? match[1] : null;
+}
+
+function newUserRecord(tg, now) {
+  return {
+    telegramId: String(tg.id),
+    username: tg.username || null,
+    firstName: tg.firstName || null,
+    lastName: tg.lastName || null,
+    balance: 0,
+    totalEarnings: 0,
+    todayEarnings: 0,
+    earningsDate: todayKey(),
+    referralsCount: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    withdrawnAmount: 0,
+    status: 'active',
+    createdAt: now,
+    lastLogin: now
+  };
+}
+
+// Create a new Telegram user only once.
+// Referral attribution is permanent and cannot be changed later.
+async function registerTelegramUser(tg, referralPayload = '') {
+  const db = getDb();
+  const uid = String(tg.id);
+  const uRef = userRef(db, uid);
+  const inviterId = parseReferralPayload(referralPayload);
+
+  return db.runTransaction(async tx => {
+    const existing = await tx.get(uRef);
+    const now = new Date().toISOString();
+
+    if (existing.exists) {
+      const old = existing.data();
+
+      if (old.status === 'banned') {
+        throw new Error('ACCOUNT_SUSPENDED');
+      }
+
+      tx.update(uRef, {
+        username: tg.username || null,
+        firstName: tg.firstName || null,
+        lastName: tg.lastName || null,
+        lastLogin: now
+      });
+
+      return {
+        ...old,
+        username: tg.username || null,
+        firstName: tg.firstName || null,
+        lastName: tg.lastName || null,
+        lastLogin: now
+      };
+    }
+
+    let inviterSnap = null;
+    let referralRef = null;
+
+    if (inviterId && inviterId !== uid) {
+      inviterSnap = await tx.get(userRef(db, inviterId));
+      referralRef = db.collection('referrals').doc(uid);
+    }
+
+    const fresh = newUserRecord(tg, now);
+
+    if (inviterSnap?.exists && inviterSnap.data().status !== 'banned' && referralRef) {
+      fresh.referredBy = inviterId;
+
+      const oldReferral = await tx.get(referralRef);
+      if (oldReferral.exists) {
+        fresh.referredBy = null;
+      }
+    }
+
+    tx.create(uRef, fresh);
+
+    if (
+      fresh.referredBy &&
+      inviterSnap?.exists &&
+      inviterSnap.data().status !== 'banned' &&
+      referralRef
+    ) {
+      tx.create(referralRef, {
+        referrerId: inviterId,
+        referredUserId: uid,
+        firstName: tg.firstName || null,
+        lastName: tg.lastName || null,
+        username: tg.username || null,
+        completedAds: 0,
+        requiredAds: REQUIRED_REFERRAL_ADS,
+        status: 'in_progress',
+        createdAt: now,
+        updatedAt: now
+      });
+
+      tx.update(userRef(db, inviterId), {
+        totalReferrals: admin.firestore.FieldValue.increment(1)
+      });
+    }
+
+    return fresh;
+  });
+}
+
+async function telegramApi(method, payload = {}) {
+  if (!BOT_TOKEN) {
+    throw new Error('TELEGRAM_BOT_TOKEN is missing.');
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${BOT_TOKEN}/${method}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok || !result.ok) {
+    throw new Error(result.description || `Telegram API ${method} failed.`);
+  }
+
+  return result.result;
+}
+
+// Automatically connect Telegram /start to this Render server.
+async function configureTelegramWebhook() {
+  if (!BOT_TOKEN || !WEBHOOK_PATH) {
+    console.warn('Telegram webhook not configured: TELEGRAM_BOT_TOKEN is missing.');
+    return;
+  }
+
+  const webhookUrl = `${PUBLIC_APP_URL}${WEBHOOK_PATH}`;
+
+  try {
+    const botInfo = await telegramApi('getMe');
+
+    if (
+      String(botInfo.username || '').toLowerCase() !==
+      TELEGRAM_BOT_USERNAME.toLowerCase()
+    ) {
+      console.error(
+        `Bot token username mismatch. Expected @${TELEGRAM_BOT_USERNAME}, received @${botInfo.username || 'unknown'}. Webhook was not changed.`
+      );
+      return;
+    }
+
+    await telegramApi('setWebhook', {
+      url: webhookUrl,
+      secret_token: WEBHOOK_SECRET,
+      allowed_updates: ['message'],
+      drop_pending_updates: false
+    });
+
+    console.log('Telegram /start webhook configured.');
+  } catch (error) {
+    console.error('Telegram webhook setup failed:', error.message);
+  }
+}
+
 // HEALTH CHECK
 app.get('/api/health', (req, res) => {
   res.json({
@@ -211,64 +397,70 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// TELEGRAM BOT /START WEBHOOK
+if (WEBHOOK_PATH) {
+  app.post(WEBHOOK_PATH, async (req, res) => {
+    if (req.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
+      return res.sendStatus(401);
+    }
+
+    // Telegram expects a fast 200 response.
+    res.sendStatus(200);
+
+    try {
+      const message = req.body?.message;
+      const text = String(message?.text || '');
+      const from = message?.from;
+      const chatId = message?.chat?.id;
+
+      if (
+        !from?.id ||
+        from.is_bot ||
+        !chatId ||
+        !/^\/start(?:@\w+)?(?:\s|$)/i.test(text)
+      ) {
+        return;
+      }
+
+      const payload = text.trim().split(/\s+/, 2)[1] || '';
+
+      await registerTelegramUser({
+        id: String(from.id),
+        username: from.username || null,
+        firstName: from.first_name || null,
+        lastName: from.last_name || null
+      }, payload);
+
+      await telegramApi('sendMessage', {
+        chat_id: chatId,
+        text: `Welcome to EarnWallet, ${from.first_name || 'friend'}! Your account is ready. Tap below to open the Mini App.`,
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: 'Open EarnWallet',
+              web_app: { url: PUBLIC_APP_URL }
+            }
+          ]]
+        }
+      });
+    } catch (error) {
+      console.error('Telegram /start handling failed:', error.message);
+    }
+  });
+}
+
 // USER AUTH
 app.post('/api/auth', telegramAuth, async (req, res) => {
   try {
-    const db = getDb();
-    const tg = req.telegramUser;
-    const ref = userRef(db, tg.id);
-
-    const result = await db.runTransaction(async tx => {
-      const snap = await tx.get(ref);
-      const now = new Date().toISOString();
-
-      if (snap.exists) {
-        const data = snap.data();
-
-        if (data.status === 'banned') {
-          throw new Error('ACCOUNT_SUSPENDED');
-        }
-
-        tx.update(ref, {
-          username: tg.username,
-          firstName: tg.firstName,
-          lastName: tg.lastName,
-          lastLogin: now
-        });
-
-        return {
-          ...data,
-          lastLogin: now
-        };
-      }
-
-      const fresh = {
-        telegramId: tg.id,
-        username: tg.username,
-        firstName: tg.firstName,
-        lastName: tg.lastName,
-        balance: 0,
-        totalEarnings: 0,
-        todayEarnings: 0,
-        earningsDate: todayKey(),
-        referralsCount: 0,
-        completedTasks: 0,
-        pendingTasks: 0,
-        withdrawnAmount: 0,
-        status: 'active',
-        createdAt: now,
-        lastLogin: now
-      };
-
-      tx.create(ref, fresh);
-      return fresh;
-    });
+    const result = await registerTelegramUser(
+      req.telegramUser,
+      req.telegramUser.startParam
+    );
 
     res.json({
       success: true,
       data: result
     });
-
   } catch (e) {
     if (e.message === 'ACCOUNT_SUSPENDED') {
       return res.status(403).json({
@@ -293,7 +485,6 @@ app.get('/api/me', telegramAuth, async (req, res) => {
       success: true,
       data: snap.data()
     });
-
   } catch (e) {
     if (e.message === 'USER_NOT_FOUND') {
       return res.status(404).json({
@@ -342,7 +533,10 @@ app.get('/api/ads', telegramAuth, async (req, res) => {
           id: d.id,
           title: String(x.title || 'Sponsored task'),
           reward: Number(x.reward || 0),
-          duration: Number(x.duration || 0)
+          duration: Math.max(
+            20,
+            Math.min(300, Math.floor(Number(x.duration) || 20))
+          )
         };
       });
 
@@ -350,7 +544,6 @@ app.get('/api/ads', telegramAuth, async (req, res) => {
       success: true,
       data: ads
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load advertisements.');
   }
@@ -377,8 +570,8 @@ app.post('/api/ads/:id/start', telegramAuth, async (req, res) => {
     const ad = adSnap.data();
 
     const duration = Math.max(
-      5,
-      Math.min(300, Math.floor(Number(ad.duration) || 0))
+      20,
+      Math.min(300, Math.floor(Number(ad.duration) || 20))
     );
 
     const reward = Number(ad.reward);
@@ -419,7 +612,6 @@ app.post('/api/ads/:id/start', telegramAuth, async (req, res) => {
         duration
       }
     });
-
   } catch (e) {
     if (e.message === 'ALREADY_CLAIMED') {
       return res.status(409).json({
@@ -483,6 +675,25 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
         throw new Error('TOO_EARLY');
       }
 
+      // Read referral records before transaction writes.
+      let referralSnap = null;
+      let inviterSnap = null;
+      let referralRef = null;
+      let inviterRef = null;
+
+      if (u.referredBy) {
+        referralRef = db.collection('referrals').doc(uid);
+        referralSnap = await tx.get(referralRef);
+
+        if (
+          referralSnap.exists &&
+          referralSnap.data().status !== 'successful'
+        ) {
+          inviterRef = userRef(db, referralSnap.data().referrerId);
+          inviterSnap = await tx.get(inviterRef);
+        }
+      }
+
       const reward = Number(s.reward);
 
       if (!Number.isFinite(reward) || reward <= 0) {
@@ -514,6 +725,35 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
         completedAt: new Date().toISOString()
       });
 
+      // Each unique completed ad advances referral progress once.
+      if (
+        referralSnap?.exists &&
+        referralSnap.data().status !== 'successful'
+      ) {
+        const referralData = referralSnap.data();
+
+        const nextCompletedAds = Math.min(
+          REQUIRED_REFERRAL_ADS,
+          Number(referralData.completedAds || 0) + 1
+        );
+
+        const nowIso = new Date().toISOString();
+        const becameSuccessful = nextCompletedAds >= REQUIRED_REFERRAL_ADS;
+
+        tx.update(referralRef, {
+          completedAds: nextCompletedAds,
+          status: becameSuccessful ? 'successful' : 'in_progress',
+          updatedAt: nowIso,
+          ...(becameSuccessful ? { successfulAt: nowIso } : {})
+        });
+
+        if (becameSuccessful && inviterSnap?.exists) {
+          tx.update(inviterRef, {
+            referralsCount: Number(inviterSnap.data().referralsCount || 0) + 1
+          });
+        }
+      }
+
       const hist = db.collection('transactions').doc();
 
       tx.create(hist, {
@@ -535,7 +775,6 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
       success: true,
       data: result
     });
-
   } catch (e) {
     const map = {
       SESSION_NOT_FOUND: [404, 'Session not found.'],
@@ -591,7 +830,6 @@ app.get('/api/tasks', telegramAuth, async (req, res) => {
         submissionStatus: submitted.get(d.id) || null
       }))
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load tasks.');
   }
@@ -656,7 +894,6 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
       success: true,
       message: 'Task submitted for review.'
     });
-
   } catch (e) {
     if (e.message === 'ALREADY_SUBMITTED') {
       return res.status(409).json({
@@ -673,18 +910,53 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
 app.get('/api/referrals', telegramAuth, async (req, res) => {
   try {
     const uid = req.telegramUser.id;
-    const snap = await requireActiveUser(getDb(), uid);
-    const botName = process.env.TELEGRAM_BOT_USERNAME || '';
+
+    await requireActiveUser(getDb(), uid);
+
+    const referralsSnap = await getDb()
+      .collection('referrals')
+      .where('referrerId', '==', uid)
+      .get();
+
+    const referrals = referralsSnap.docs.map(doc => {
+      const item = doc.data();
+
+      return {
+        telegramId: item.referredUserId || doc.id,
+        firstName: item.firstName || 'Telegram User',
+        lastName: item.lastName || '',
+        username: item.username || null,
+        completedAds: Number(item.completedAds || 0),
+        requiredAds: REQUIRED_REFERRAL_ADS,
+        status: item.status || 'in_progress',
+        createdAt: item.createdAt || null
+      };
+    }).sort((a, b) =>
+      String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+    );
+
+    const successfulCount = referrals.filter(
+      x => x.status === 'successful'
+    ).length;
+
+    const inProgressCount = referrals.filter(
+      x => x.status !== 'successful'
+    ).length;
 
     res.json({
       success: true,
       data: {
-        count: Number(snap.data().referralsCount || 0),
-        link: botName ? `https://t.me/${botName}?start=${uid}` : null,
-        bonus: REFERRAL_BONUS
+        count: successfulCount,
+        successfulCount,
+        totalCount: referrals.length,
+        inProgressCount,
+        requiredSuccessfulReferrals: REQUIRED_SUCCESSFUL_REFERRALS,
+        requiredAdsPerReferral: REQUIRED_REFERRAL_ADS,
+        link: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=ref_${uid}`,
+        bonus: REFERRAL_BONUS,
+        referrals
       }
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load referrals.');
   }
@@ -716,7 +988,6 @@ app.get('/api/history', telegramAuth, async (req, res) => {
       success: true,
       data: items
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load history.');
   }
@@ -750,6 +1021,21 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Enter a valid payment account.'
+      });
+    }
+
+    // Server-side referral check. Frontend locking is not trusted.
+    const referralDocs = await db.collection('referrals')
+      .where('referrerId', '==', uid)
+      .get();
+
+    const successfulReferrals = referralDocs.docs
+      .filter(doc => doc.data().status === 'successful').length;
+
+    if (successfulReferrals < REQUIRED_SUCCESSFUL_REFERRALS) {
+      return res.status(403).json({
+        success: false,
+        error: `Withdrawal is locked. You need ${REQUIRED_SUCCESSFUL_REFERRALS} successful referrals. Your current successful referrals: ${successfulReferrals}.`
       });
     }
 
@@ -802,7 +1088,6 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       success: true,
       message: 'Withdrawal request submitted.'
     });
-
   } catch (e) {
     const m = {
       USER_NOT_FOUND: [404, 'User not found.'],
@@ -839,14 +1124,12 @@ app.patch('/api/profile', telegramAuth, async (req, res) => {
     }
 
     await requireActiveUser(getDb(), uid);
-
     await userRef(getDb(), uid).update(allowed);
 
     res.json({
       success: true,
       message: 'Profile updated.'
     });
-
   } catch (e) {
     sendError(res, e, 'Could not update profile.');
   }
@@ -886,7 +1169,6 @@ app.get('/api/ad-placements', telegramAuth, async (req, res) => {
       success: true,
       data: placements
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load ad placements.');
   }
@@ -913,7 +1195,6 @@ app.get('/api/admin/ad-placements', adminAuth, async (req, res) => {
       success: true,
       data
     });
-
   } catch (e) {
     sendError(res, e, 'Could not load ad placement settings.');
   }
@@ -960,7 +1241,6 @@ app.put('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
       success: true,
       message: `Ad placement "${slot}" saved.`
     });
-
   } catch (e) {
     sendError(res, e, 'Could not save ad placement.');
   }
@@ -986,7 +1266,6 @@ app.delete('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
       success: true,
       message: `Ad placement "${slot}" removed.`
     });
-
   } catch (e) {
     sendError(res, e, 'Could not remove ad placement.');
   }
@@ -1021,7 +1300,6 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
         pendingWithdraws: pending.size
       }
     });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1036,7 +1314,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
       success: true,
       data: s.docs.map(d => d.data())
     });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1057,7 +1334,6 @@ app.post('/api/admin/ban', adminAuth, async (req, res) => {
     await userRef(getDb(), telegramId).update({ status });
 
     res.json({ success: true });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1075,7 +1351,6 @@ app.get('/api/admin/ads', adminAuth, async (req, res) => {
         ...d.data()
       }))
     });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1096,12 +1371,12 @@ app.post('/api/admin/ads', adminAuth, async (req, res) => {
       r <= 0 ||
       r > 1000 ||
       !Number.isInteger(d) ||
-      d < 5 ||
+      d < 20 ||
       d > 300
     ) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid ad fields.'
+        error: 'Invalid ad fields. Duration must be 20 to 300 seconds.'
       });
     }
 
@@ -1118,7 +1393,6 @@ app.post('/api/admin/ads', adminAuth, async (req, res) => {
     });
 
     res.json({ success: true });
-
   } catch (e) {
     sendError(res, e, 'Could not create ad.');
   }
@@ -1132,7 +1406,6 @@ app.delete('/api/admin/ads/:id', adminAuth, async (req, res) => {
       .delete();
 
     res.json({ success: true });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1150,7 +1423,6 @@ app.get('/api/admin/tasks', adminAuth, async (req, res) => {
         ...d.data()
       }))
     });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1181,7 +1453,6 @@ app.post('/api/admin/tasks', adminAuth, async (req, res) => {
     });
 
     res.json({ success: true });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1195,7 +1466,6 @@ app.delete('/api/admin/tasks/:id', adminAuth, async (req, res) => {
       .delete();
 
     res.json({ success: true });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1216,7 +1486,6 @@ app.get('/api/admin/withdrawals', adminAuth, async (req, res) => {
         ...d.data()
       }))
     });
-
   } catch (e) {
     sendError(res, e);
   }
@@ -1283,7 +1552,6 @@ app.post('/api/admin/withdrawals/:id', adminAuth, async (req, res) => {
     });
 
     res.json({ success: true });
-
   } catch (e) {
     if (e.message === 'NOT_FOUND') {
       return res.status(404).json({
@@ -1303,19 +1571,13 @@ app.post('/api/admin/withdrawals/:id', adminAuth, async (req, res) => {
   }
 });
 
-// =======================================
-// FRONTEND SERVING - FIXED PATH
-// =======================================
-
-// Admin page
+// FRONTEND SERVING
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
 
-// Static files: CSS, JS, Images
 app.use(express.static(PUBLIC_DIR));
 
-// Main User Mini App
 app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
@@ -1324,4 +1586,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Frontend directory: ${PUBLIC_DIR}`);
+  configureTelegramWebhook();
 });
