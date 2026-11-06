@@ -2,52 +2,58 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { initializeFirebase } = require('./config/firebase');
+const { initializeFirebase, getDb } = require('./config/firebase');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Initialize Firebase on startup
+// Initialize Firebase
 initializeFirebase();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ===== Serve static frontend files =====
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
-
-// ===== Health check (for Render) =====
-app.get('/health', (req, res) => {
+// Root endpoint
+app.get('/', (req, res) => {
   res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
+    name: 'Watch & Earn API',
+    status: 'running',
+    message: 'User panel coming in Phase 3',
   });
 });
 
-// ===== Root: serve frontend index.html =====
-app.get('/', (req, res) => {
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ===== TEST ENDPOINT: Firestore Write =====
+app.get('/test-firestore', async (req, res) => {
+  try {
+    const db = getDb();
+    const testRef = db.collection('test').doc('connection');
+    
+    await testRef.set({
+      status: 'Success',
+      message: 'Firestore is connected perfectly!',
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({ success: true, message: 'Data written to Firestore successfully!' });
+  } catch (error) {
+    console.error('Firestore Test Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
+// Serve frontend for all other routes
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
-});
-
-// ===== Admin panel =====
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'admin.html'));
-});
-
-// ===== 404 handler (only for /api routes and unknown) =====
-app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
-
-// ===== Error handler =====
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
 });
