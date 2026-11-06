@@ -74,17 +74,18 @@ app.post('/api/auth', telegramAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
+// ... (উপরের অন্যান্য কোড)
+
+// ===== ADMIN ROUTE =====
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
 
 // ===== FRONTEND SERVING =====
-// public ফোল্ডার থেকে static ফাইল (CSS, JS, HTML) সার্ভ করবে
 app.use(express.static(path.join(__dirname, 'public')));
 
-// অন্য যেকোনো রুটে গেলে index.html দেখাবে
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ===== START SERVER =====
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// ... (app.listen)
