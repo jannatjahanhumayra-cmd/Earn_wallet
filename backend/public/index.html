@@ -1,39 +1,81 @@
+
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0b1023"><title>EarnWalletBot</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1023">
+  <title>EarnWalletBot</title>
   <link rel="stylesheet" href="/style.css?v=3">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <div id="app" class="app-shell">
-    <header class="topbar"><div class="brand-mark">E</div><div class="brand-copy"><b>EarnWallet</b><small>REWARDS PLATFORM</small></div><button id="refreshBtn" class="icon-btn" aria-label="Refresh">↻</button></header>
+    <header class="topbar">
+      <div class="brand-mark">E</div>
+      <div class="brand-copy">
+        <b>EarnWallet</b>
+        <small>REWARDS PLATFORM</small>
+      </div>
+      <button id="refreshBtn" class="icon-btn" aria-label="Refresh">↻</button>
+    </header>
+
     <main id="view" class="view">
-      <div class="ad-slot top-ad"><small>ADVERTISEMENT</small><div class="ad-placeholder">Adsterra Top Placement</div></div>
+      <div class="ad-slot top-ad">
+        <small>ADVERTISEMENT</small>
+        <div class="ad-placeholder">Adsterra Top Placement</div>
+      </div>
       <div class="skeleton"></div>
     </main>
-    <div class="bottom-ad" data-ad-slot="bottom"><small>ADVERTISEMENT</small><div class="ad-placeholder">Advertisement</div></div>
+
+    <div class="bottom-ad" data-ad-slot="bottom">
+      <small>ADVERTISEMENT</small>
+      <div class="ad-placeholder">Advertisement</div>
+    </div>
+
     <nav class="bottom-nav" id="bottomNav">
-      <button data-page="home" class="nav-item active"><span>⌂</span><small>Home</small></button>
-      <button data-page="ads" class="nav-item"><span>▶</span><small>Ads</small></button>
-      <button data-page="tasks" class="nav-item"><span>☷</span><small>Tasks</small></button>
-      <button data-page="referral" class="nav-item"><span>♧</span><small>Invite</small></button>
-      <button data-page="wallet" class="nav-item"><span>▣</span><small>Wallet</small></button>
-      <button data-page="profile" class="nav-item"><span>◉</span><small>Profile</small></button>
+      <button data-page="home" class="nav-item active">
+        <span>⌂</span><small>Home</small>
+      </button>
+      <button data-page="ads" class="nav-item">
+        <span>▶</span><small>Ads</small>
+      </button>
+      <button data-page="tasks" class="nav-item">
+        <span>☷</span><small>Tasks</small>
+      </button>
+      <button data-page="referral" class="nav-item">
+        <span>♧</span><small>Invite</small>
+      </button>
+      <button data-page="wallet" class="nav-item">
+        <span>▣</span><small>Wallet</small>
+      </button>
+      <button data-page="profile" class="nav-item">
+        <span>◉</span><small>Profile</small>
+      </button>
     </nav>
   </div>
 
   <div class="modal-backdrop hidden" id="gateModal">
     <section class="gate-card">
       <button class="modal-x" id="gateClose" aria-label="Close">×</button>
-      <div class="gate-icon">✦</div><h2>Sponsored message</h2>
-      <p class="muted">An advertisement may appear in this area. Close this panel to continue.</p>
-      <div class="gate-ad" data-ad-slot="gate"><small>ADVERTISEMENT</small><div class="ad-placeholder">Advertisement</div></div>
+      <div class="gate-icon">✦</div>
+      <h2>Sponsored message</h2>
+      <p class="muted">
+        An advertisement may appear in this area. Close this panel to continue.
+      </p>
+      <div class="gate-ad" data-ad-slot="gate">
+        <small>ADVERTISEMENT</small>
+        <div class="ad-placeholder">Advertisement</div>
+      </div>
       <button class="primary-btn" id="continueGate">Close & Continue</button>
-      <small class="fine-print">Closing this panel is not proof of an ad impression.</small>
+      <small class="fine-print">
+        Closing this panel is not proof of an ad impression.
+      </small>
     </section>
   </div>
+
   <div class="toast" id="toast"></div>
-  <script src="/app.js?v=3"></script>
-</body></html>
+
+  <script src="/app.js?v=4"></script>
+</body>
+</html>
