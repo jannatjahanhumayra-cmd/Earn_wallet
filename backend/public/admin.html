@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EarnWallet Admin Panel</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#0b1020;color:#eef2ff;font-family:Arial,sans-serif}
+    header{padding:20px;background:#121a2e;border-bottom:1px solid #26324b}
+    header h2{margin:0;color:#ff9d24}
+    header p{margin:7px 0 0;color:#9eabc5;font-size:13px}
+    main{max-width:1100px;margin:auto;padding:16px}
+    nav{display:flex;gap:8px;overflow-x:auto;padding:5px 0 15px}
+    nav button{white-space:nowrap;background:#1a2540;color:#dce5fa;border:1px solid #34415d;padding:11px 14px;border-radius:9px}
+    nav button.active{background:#ff9825;color:#111827;border-color:#ff9825;font-weight:bold}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+    .card,.panel{background:#151f35;border:1px solid #293650;border-radius:13px;padding:16px;margin-bottom:13px}
+    .card small{color:#aab6cc}
+    .number{font-size:25px;font-weight:bold;margin-top:9px;color:#ffad43}
+    h3{margin:0 0 14px}
+    .section{display:none}
+    .section.active{display:block}
+    input,textarea,select{width:100%;padding:12px;margin:6px 0 12px;background:#0d1629;border:1px solid #34415d;border-radius:8px;color:white;font-size:14px}
+    textarea{min-height:100px;resize:vertical}
+    label{font-size:13px;color:#bdc9dc}
+    .btn{border:0;padding:10px 13px;border-radius:8px;background:#ff9825;color:#111827;font-weight:bold;margin:4px 3px 4px 0}
+    .btn.red{background:#ef5350;color:white}
+    .btn.green{background:#20b879;color:#062417}
+    .btn.gray{background:#34415d;color:white}
+    .item{background:#0e172a;border:1px solid #293650;padding:13px;border-radius:10px;margin:9px 0;overflow-wrap:anywhere}
+    .item strong{color:#ffb454}
+    .muted{color:#9eabc5;font-size:13px;line-height:1.6}
+    .status{display:inline-block;padding:4px 8px;border-radius:6px;background:#263650;font-size:12px}
+    .notice{padding:12px;background:#392b15;border:1px solid #80551e;color:#ffd89d;border-radius:9px;margin:12px 0}
+    .success{color:#42d99b}
+    .error{color:#ff7777}
+    .empty{color:#9eabc5;text-align:center;padding:20px}
+    .check{display:flex;align-items:center;gap:8px;margin:10px 0}
+    .check input{width:auto;margin:0}
+    @media(min-width:700px){main{padding:24px}}
+  </style>
+</head>
+<body>
+<header>
+  <h2>💰 EarnWallet Admin</h2>
+  <p>Administrator Control Panel</p>
+</header>
+
+<main>
+  <div id="notice" class="notice">
+    Admin Panel লোড হচ্ছে...
+  </div>
+
+  <nav>
+    <button class="active" data-tab="dashboard">Dashboard</button>
+    <button data-tab="users">Users</button>
+    <button data-tab="ads">Advertisements</button>
+    <button data-tab="tasks">Tasks</button>
+    <button data-tab="withdrawals">Withdrawals</button>
+    <button data-tab="placements">Ad Placement</button>
+  </nav>
+
+  <section id="dashboard" class="section active">
+    <h3>📊 Dashboard Overview</h3>
+    <div class="grid">
+      <div class="card"><small>Total Users</small><div class="number" id="totalUsers">0</div></div>
+      <div class="card"><small>Active Users</small><div class="number" id="activeUsers">0</div></div>
+      <div class="card"><small>Total Balance</small><div class="number" id="totalBalance">৳0</div></div>
+      <div class="card"><small>Pending Withdrawals</small><div class="number" id="pendingWithdraws">0</div></div>
+    </div>
+    <button class="btn" onclick="loadDashboard()">↻ Refresh Dashboard</button>
+  </section>
+
+  <section id="users" class="section">
+    <h3>👥 User Management</h3>
+    <button class="btn" onclick="loadUsers()">↻ Refresh Users</button>
+    <div id="usersList"></div>
+  </section>
+
+  <section id="ads" class="section">
+    <h3>📺 Add New Advertisement</h3>
+    <div class="panel">
+      <label>Advertisement Title</label>
+      <input id="adTitle" placeholder="Example: Watch Advertisement">
+      <label>Advertisement URL</label>
+      <input id="adUrl" placeholder="https://example.com">
+      <label>Reward</label>
+      <input id="adReward" type="number" min="0.01" step="0.01" placeholder="Example: 0.50">
+      <label>Duration (seconds, 20–300)</label>
+      <input id="adDuration" type="number" min="20" max="300" value="20">
+      <button class="btn" onclick="createAd()">+ Create Advertisement</button>
+    </div>
+    <h3>Advertisement List</h3>
+    <button class="btn" onclick="loadAds()">↻ Refresh Ads</button>
+    <div id="adsList"></div>
+  </section>
+
+  <section id="tasks" class="section">
+    <h3>📝 Add New Task</h3>
+    <div class="panel">
+      <label>Task Title</label>
+      <input id="taskTitle" placeholder="Example: Visit Website">
+      <label>Task URL</label>
+      <input id="taskUrl" placeholder="https://example.com">
+      <label>Reward</label>
+      <input id="taskReward" type="number" min="0" step="0.01" placeholder="Example: 1">
+      <label class="check"><input id="taskProof" type="checkbox"> Requires proof</label>
+      <button class="btn" onclick="createTask()">+ Create Task</button>
+    </div>
+    <h3>Task List</h3>
+    <button class="btn" onclick="loadTasks()">↻ Refresh Tasks</button>
+    <div id="tasksList"></div>
+  </section>
+
+  <section id="withdrawals" class="section">
+    <h3>💳 Withdrawal Requests</h3>
+    <button class="btn" onclick="loadWithdrawals()">↻ Refresh Withdrawals</button>
+    <div id="withdrawalsList"></div>
+  </section>
+
+  <section id="placements" class="section">
+    <h3>📢 Advertisement Placement Settings</h3>
+    <p class="muted">এখানে বিজ্ঞাপনের HTML কোড এবং কোন জায়গায় দেখাবে তা সেট করতে পারবে।</p>
+    <div id="placementsList"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const tg = window.Telegram?.WebApp;
+  tg?.ready();
+  tg?.expand();
+
+  const initData = tg?.initData || '';
+  const notice = document.getElementById('notice');
+
+  function message(text, type='') {
+    notice.textContent = text;
+    notice.className = type === 'error' ? 'notice error' :
+      type === 'success' ? 'notice success' : 'notice';
+  }
+
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;',
+      '"':'&quot;', "'":'&#39;'
+    })[c]);
+  }
+
+  async function api(path, options={}) {
+    if (!initData) {
+      throw new Error('Telegram Mini App থেকে Admin Panel খুলতে হবে। সাধারণ Browser-এ Admin API কাজ করবে না।');
+    }
+
+    const response = await fetch(path, {
+      ...options,
+      headers: {
+        'Content-Type':'application/json',
+        'Authorization':'tma ' + initData,
+        ...(options.headers || {})
+      }
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || result.success === false) {
+      throw new Error(result.error || `Request failed: ${response.status}`);
+    }
+
+    return result.data ?? result;
+  }
+
+  async function run(action) {
+    try {
+      message('লোড হচ্ছে...');
+      await action();
+      message('কাজ সম্পন্ন হয়েছে।', 'success');
+    } catch (error) {
+      message(error.message || 'একটি সমস্যা হয়েছে।', 'error');
+    }
+  }
+
+  document.querySelectorAll('nav button').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+      button.classList.add('active');
+      document.getElementById(button.dataset.tab).classList.add('active');
+
+      const loaders = {
+        dashboard: loadDashboard,
+        users: loadUsers,
+        ads: loadAds,
+        tasks: loadTasks,
+        withdrawals: loadWithdrawals,
+        placements: loadPlacements
+      };
+
+      run(loaders[button.dataset.tab]);
+    });
+  });
+
+  async function loadDashboard() {
+    const d = await api('/api/admin/stats');
+    document.getElementById('totalUsers').textContent = d.totalUsers ?? 0;
+    document.getElementById('activeUsers').textContent = d.activeUsers ?? 0;
+    document.getElementById('totalBalance').textContent =
+      '৳' + Number(d.totalBalance || 0).toFixed(2);
+    document.getElementById('pendingWithdraws').textContent =
+      d.pendingWithdraws ?? 0;
+  }
+
+  async function loadUsers() {
+    const users = await api('/api/admin/users');
+    const root = document.getElementById('usersList');
+
+    if (!users.length) {
+      root.innerHTML = '<div class="empty">কোনো User পাওয়া যায়নি।</div>';
+      return;
+    }
+
+    root.innerHTML = users.map(u => {
+      const id = String(u.telegramId || u.id || '');
+      const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Unknown User';
+      const banned = u.status === 'banned';
+
+      return `<div class="item">
+        <strong>${esc(name)}</strong>
+        <div class="muted">
+          Username: ${esc(u.username ? '@'+u.username : 'N/A')}<br>
+          Telegram ID: ${esc(id)}<br>
+          Balance: ৳${Number(u.balance || 0).toFixed(2)}<br>
+          Status: <span class="status">${esc(u.status || 'unknown')}</span>
+        </div>
+        <button class="btn ${banned ? 'green' : 'red'}"
+          onclick="changeBan('${esc(id)}','${banned ? 'active' : 'banned'}')">
+          ${banned ? 'Unban User' : 'Ban User'}
+        </button>
+      </div>`;
+    }).join('');
+  }
+
+  window.changeBan = (telegramId, status) => run(async () => {
+    await api('/api/admin/ban', {
+      method:'POST',
+      body:JSON.stringify({telegramId, status})
+    });
+    await loadUsers();
+  });
+
+  async function loadAds() {
+    const ads = await api('/api/admin/ads');
+    const root = document.getElementById('adsList');
+
+    if (!ads.length) {
+      root.innerHTML = '<div class="empty">কোনো Advertisement নেই।</div>';
+      return;
+    }
+
+    root.innerHTML = ads.map(ad => `
+      <div class="item">
+        <strong>${esc(ad.title)}</strong>
+        <div class="muted">
+          Reward: ৳${Number(ad.reward || 0).toFixed(2)}<br>
+          Duration: ${esc(ad.duration)} seconds<br>
+          Status: ${esc(ad.status)}
+        </div>
+        <button class="btn red" onclick="deleteAd('${esc(ad.id)}')">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  window.createAd = () => run(async () => {
+    const title = document.getElementById('adTitle').value.trim();
+    const url = document.getElementById('adUrl').value.trim();
+    const reward = Number(document.getElementById('adReward').value);
+    const duration = Number(document.getElementById('adDuration').value);
+
+    if (!title || !url || !Number.isFinite(reward) || reward <= 0 ||
+        !Number.isInteger(duration) || duration < 20 || duration > 300) {
+      throw new Error('সব তথ্য সঠিকভাবে পূরণ করো। Duration ২০–৩০০ সেকেন্ড হতে হবে।');
+    }
+
+    await api('/api/admin/ads', {
+      method:'POST',
+      body:JSON.stringify({title, url, reward, duration})
+    });
+
+    document.getElementById('adTitle').value = '';
+    document.getElementById('adUrl').value = '';
+    document.getElementById('adReward').value = '';
+    await loadAds();
+  });
+
+  window.deleteAd = id => run(async () => {
+    if (!confirm('এই Advertisement ডিলিট করতে চাও?')) return;
+    await api('/api/admin/ads/' + encodeURIComponent(id), {method:'DELETE'});
+    await loadAds();
+  });
+
+  async function loadTasks() {
+    const tasks = await api('/api/admin/tasks');
+    const root = document.getElementById('tasksList');
+
+    if (!tasks.length) {
+      root.innerHTML = '<div class="empty">কোনো Task নেই।</div>';
+      return;
+    }
+
+    root.innerHTML = tasks.map(task => `
+      <div class="item">
+        <strong>${esc(task.title)}</strong>
+        <div class="muted">
+          Reward: ৳${Number(task.reward || 0).toFixed(2)}<br>
+          Proof required: ${task.requiresProof ? 'Yes' : 'No'}<br>
+          Status: ${esc(task.status)}
+        </div>
+        <button class="btn red" onclick="deleteTask('${esc(task.id)}')">Delete</button>
+      </div>
+    `).join('');
+  }
+
+  window.createTask = () => run(async () => {
+    const title = document.getElementById('taskTitle').value.trim();
+    const url = document.getElementById('taskUrl').value.trim();
+    const reward = Number(document.getElementById('taskReward').value);
+    const requiresProof = document.getElementById('taskProof').checked;
+
+    if (!title || !Number.isFinite(reward) || reward < 0) {
+      throw new Error('Task Title ও সঠিক Reward দিতে হবে।');
+    }
+
+    await api('/api/admin/tasks', {
+      method:'POST',
+      body:JSON.stringify({title, url, reward, requiresProof})
+    });
+
+    document.getElementById('taskTitle').value = '';
+    document.getElementById('taskUrl').value = '';
+    document.getElementById('taskReward').value = '';
+    document.getElementById('taskProof').checked = false;
+    await loadTasks();
+  });
+
+  window.deleteTask = id => run(async () => {
+    if (!confirm('এই Task ডিলিট করতে চাও?')) return;
+    await api('/api/admin/tasks/' + encodeURIComponent(id), {method:'DELETE'});
+    await loadTasks();
+  });
+
+  async function loadWithdrawals() {
+    const items = await api('/api/admin/withdrawals');
+    const root = document.getElementById('withdrawalsList');
+
+    if (!items.length) {
+      root.innerHTML = '<div class="empty">কোনো Withdrawal Request নেই।</div>';
+      return;
+    }
+
+    root.innerHTML = items.map(w => `
+      <div class="item">
+        <strong>৳${Number(w.amount || 0).toFixed(2)}</strong>
+        <div class="muted">
+          User ID: ${esc(w.telegramId || w.userId)}<br>
+          Method: ${esc(w.method)}<br>
+          Account: ${esc(w.account)}<br>
+          Status: <span class="status">${esc(w.status)}</span><br>
+          Date: ${esc(w.createdAt || '')}
+        </div>
+        ${w.status === 'pending' ? `
+          <button class="btn green" onclick="processWithdrawal('${esc(w.id)}','approved')">Approve</button>
+          <button class="btn red" onclick="processWithdrawal('${esc(w.id)}','rejected')">Reject</button>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  window.processWithdrawal = (id, status) => run(async () => {
+    const action = status === 'approved' ? 'Approve' : 'Reject';
+    if (!confirm(`এই Withdrawal ${action} করতে চাও?`)) return;
+
+    await api('/api/admin/withdrawals/' + encodeURIComponent(id), {
+      method:'POST',
+      body:JSON.stringify({status})
+    });
+
+    await loadWithdrawals();
+    await loadDashboard();
+  });
+
+  async function loadPlacements() {
+    const data = await api('/api/admin/ad-placements');
+    const slots = ['top','middle','bottom','gate'];
+    const root = document.getElementById('placementsList');
+
+    root.innerHTML = slots.map(slot => {
+      const p = data[slot] || {};
+      return `<div class="panel">
+        <h3>${esc(slot.toUpperCase())} Placement</h3>
+        <label>Advertisement Label</label>
+        <input id="label-${slot}" value="${esc(p.label || 'Advertisement')}">
+        <label>Advertisement HTML Code</label>
+        <textarea id="html-${slot}" placeholder="এখানে Ad HTML code বসাও">${esc(p.html || '')}</textarea>
+        <label class="check">
+          <input type="checkbox" id="enabled-${slot}" ${p.enabled === true ? 'checked' : ''}>
+          Enable this placement
+        </label>
+        <button class="btn" onclick="savePlacement('${slot}')">Save Placement</button>
+        <button class="btn red" onclick="removePlacement('${slot}')">Remove</button>
+      </div>`;
+    }).join('');
+  }
+
+  window.savePlacement = slot => run(async () => {
+    const label = document.getElementById('label-' + slot).value;
+    const html = document.getElementById('html-' + slot).value;
+    const enabled = document.getElementById('enabled-' + slot).checked;
+
+    await api('/api/admin/ad-placements/' + slot, {
+      method:'PUT',
+      body:JSON.stringify({label, html, enabled})
+    });
+
+    await loadPlacements();
+  });
+
+  window.removePlacement = slot => run(async () => {
+    if (!confirm('এই Placement-এর সেটিংস মুছতে চাও?')) return;
+    await api('/api/admin/ad-placements/' + slot, {method:'DELETE'});
+    await loadPlacements();
+  });
+
+  if (!initData) {
+    message('Telegram Mini App থেকে খুলতে হবে। সাধারণ Browser-এ Admin Authentication পাওয়া যাবে না।', 'error');
+  } else {
+    run(loadDashboard);
+  }
+})();
+</script>
+</body>
+</html>
