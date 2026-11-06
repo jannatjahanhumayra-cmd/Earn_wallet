@@ -5,7 +5,7 @@ const cors = require('cors');
 const crypto = require('crypto');
 const { initializeFirebase, getDb } = require('./config/firebase');
 
-const app = express(); // <--- এখানে app ডিফাইন করা হলো
+const app = express();
 const PORT = process.env.PORT || 10000;
 
 initializeFirebase();
@@ -74,7 +74,6 @@ app.post('/api/auth', telegramAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Server error' });
   }
 });
-// ... (উপরের অন্যান্য কোড)
 
 // ===== ADMIN ROUTE =====
 app.get('/admin', (req, res) => {
@@ -88,4 +87,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ... (app.listen)
+// ===== START SERVER =====
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
