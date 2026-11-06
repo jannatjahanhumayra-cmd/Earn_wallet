@@ -7,71 +7,77 @@ const cors = require('cors');
 const crypto = require('crypto');
 const admin = require('firebase-admin');
 
+const app = express();
+const PORT = process.env.PORT || 10000;
+const PUBLIC_DIR = path.join(__dirname, 'backend', 'public');
+
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
+// ==========================================
+// FIREBASE INITIALIZATION
+// ==========================================
+
 let firebaseDb = null;
 let firebaseAuth = null;
 
 function initializeFirebase() {
-  if (admin.apps.length > 0) {
-    const existingApp = admin.app();
-    firebaseDb = existingApp.firestore();
-    firebaseAuth = existingApp.auth();
-    return existingApp;
+  if (admin.apps.length) {
+    const existing = admin.app();
+    firebaseDb = existing.firestore();
+    firebaseAuth = existing.auth();
+    return existing;
   }
 
-  const credentialsJson = process.env.FIREBASE_CREDENTIALS;
+  const credentials = process.env.FIREBASE_CREDENTIALS;
 
-  if (!credentialsJson) {
-    console.warn('FIREBASE_CREDENTIALS missing. Firebase initialization skipped.');
+  if (!credentials) {
+    console.error('FIREBASE_CREDENTIALS is missing.');
     return null;
   }
 
   try {
-    const serviceAccount = JSON.parse(credentialsJson);
-    const appInstance = admin.initializeApp({
+    const serviceAccount = JSON.parse(credentials);
+
+    const instance = admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
 
     firebaseDb = admin.firestore();
     firebaseAuth = admin.auth();
 
-    console.log('Firebase Admin initialized successfully.');
-    return appInstance;
+    console.log('Firebase Admin initialized.');
+    return instance;
   } catch (error) {
-    console.error('Firebase initialization error:', error.message);
+    console.error('Firebase initialization failed:', error.message);
     return null;
   }
 }
 
+initializeFirebase();
+
 function getDb() {
   if (!firebaseDb) {
-    throw new Error('Firebase not initialized. Check FIREBASE_CREDENTIALS in Render Environment.');
+    throw new Error('Firebase is not initialized. Check FIREBASE_CREDENTIALS.');
   }
   return firebaseDb;
 }
 
 function getAuth() {
   if (!firebaseAuth) {
-    throw new Error('Firebase not initialized. Check FIREBASE_CREDENTIALS in Render Environment.');
+    throw new Error('Firebase Auth is not initialized.');
   }
   return firebaseAuth;
 }
 
-const app = express();
-const PORT = process.env.PORT || 10000;
-const PUBLIC_DIR = path.join(__dirname, 'backend', 'public');
+// ==========================================
+// ENVIRONMENT SETTINGS
+// ==========================================
 
-initializeFirebase();
-
-app.use(cors());
-app.use(express.json({ limit: '1mb' }));
-
-// USER BOT TOKEN
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-
-// ADMIN BOT TOKEN
 const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
-
 const ADMIN_ID = String(process.env.ADMIN_TELEGRAM_ID || '');
+
 const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW || 100);
 const REFERRAL_BONUS = Number(process.env.REFERRAL_BONUS || 0);
 
@@ -83,7 +89,8 @@ const TELEGRAM_BOT_USERNAME = String(
 ).replace(/^@/, '');
 
 const PUBLIC_APP_URL = String(
-  process.env.RENDER_EXTERNAL_URL || 'https://earn-wallet-z0ea.onrender.com'
+  process.env.RENDER_EXTERNAL_URL ||
+  'https://earn-wallet-z0ea.onrender.com'
 ).replace(/\/$/, '');
 
 const WEBHOOK_SECRET = BOT_TOKEN
@@ -97,144 +104,63 @@ const WEBHOOK_PATH = WEBHOOK_SECRET
   ? `/telegram/webhook/${WEBHOOK_SECRET}`
   : '';
 
-function verifyInitData(initData, botToken) {
-  if (!initData || !botToken) return null;
+const DEFAULT_APP_SETTINGS = {
+  appName: 'EarnWallet',
+  maintenance: false,
+  maintenanceMessage:
+    'We are currently updating EarnWallet. Please try again later.',
+  supportUrl: '',
+  minWithdraw: MIN_WITHDRAW
+};
 
-  try {
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
+const DEFAULT_PAYMENT_SETTINGS = {
+  bKash: { enabled: true, label: 'bKash' },
+  Nagad: { enabled: true, label: 'Nagad' },
+  USDT: { enabled: true, label: 'Binance USDT' }
+};
 
-    if (!hash) return null;
+const AD_PLACEMENT_SLOTS = new Set([
+  'top', 'middle', 'bottom', 'gate'
+]);
 
-    params.delete('hash');
+// ==========================================
+// COMMON HELPERS
+// ==========================================
 
-    const dataCheckString = [...params.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join('\n');
-
-    const secretKey = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(botToken)
-      .digest();
-
-    const calculatedHash = crypto
-      .createHmac('sha256', secretKey)
-      .update(dataCheckString)
-      .digest('hex');
-
-    const a = Buffer.from(calculatedHash, 'hex');
-    const b = Buffer.from(hash, 'hex');
-
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-      return null;
-    }
-
-    const authDate = Number(params.get('auth_date') || 0);
-    const now = Math.floor(Date.now() / 1000);
-
-    if (!authDate || now - authDate > 3600 || authDate > now + 60) {
-      return null;
-    }
-
-    const user = params.get('user');
-    if (!user) return null;
-
-    const parsedUser = JSON.parse(user);
-    parsedUser._startParam = params.get('start_param') || '';
-
-    return parsedUser;
-  } catch (e) {
-    console.error('Telegram initData verification:', e.message);
-    return null;
-  }
-}
-
-function readInitData(req) {
-  const h = req.headers.authorization || '';
-  return h.startsWith('tma ') ? h.slice(4) : '';
-}
-
-// USER BOT AUTHENTICATION
-async function telegramAuth(req, res, next) {
-  const user = verifyInitData(readInitData(req), BOT_TOKEN);
-
-  if (!user?.id) {
-    return res.status(401).json({
-      success: false,
-      error: 'Telegram authentication failed. Open this app from the bot.'
-    });
-  }
-
-  req.telegramUser = {
-    id: String(user.id),
-    username: user.username || null,
-    firstName: user.first_name || null,
-    lastName: user.last_name || null,
-    startParam: user._startParam || ''
-  };
-
-  next();
-}
-
-// ADMIN BOT AUTHENTICATION
-// IMPORTANT: Admin authentication uses ADMIN_BOT_TOKEN.
-async function adminAuth(req, res, next) {
-  const adminUser = verifyInitData(
-    readInitData(req),
-    ADMIN_BOT_TOKEN
-  );
-
-  if (!adminUser?.id) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid Admin Bot InitData'
-    });
-  }
-
-  if (!ADMIN_ID || String(adminUser.id) !== ADMIN_ID) {
-    return res.status(403).json({
-      success: false,
-      error: 'Access denied'
-    });
-  }
-
-  req.adminUser = adminUser;
-  next();
+function sendError(res, error, fallback = 'Server error') {
+  console.error(error);
+  return res.status(500).json({
+    success: false,
+    error: fallback
+  });
 }
 
 function userRef(db, uid) {
   return db.collection('users').doc(String(uid));
 }
 
-function sendError(res, error, fallback = 'Server error') {
-  console.error(error);
-  res.status(500).json({
-    success: false,
-    error: fallback
-  });
-}
-
 async function requireActiveUser(db, uid) {
   const snap = await userRef(db, uid).get();
 
   if (!snap.exists) throw new Error('USER_NOT_FOUND');
-  if (snap.data().status === 'banned') throw new Error('ACCOUNT_SUSPENDED');
+  if (snap.data().status === 'banned') {
+    throw new Error('ACCOUNT_SUSPENDED');
+  }
 
   return snap;
 }
 
 function todayKey() {
-  const d = new Date();
-
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Dhaka'
-  }).format(d);
+  }).format(new Date());
 }
 
 function parseReferralPayload(value) {
-  const raw = String(value || '').trim();
-  const match = raw.match(/^(?:ref_)?(\d{1,20})$/);
+  const match = String(value || '')
+    .trim()
+    .match(/^(?:ref_)?(\d{1,20})$/);
+
   return match ? match[1] : null;
 }
 
@@ -258,16 +184,158 @@ function newUserRecord(tg, now) {
   };
 }
 
-// Create a new Telegram user only once.
-// Referral attribution is permanent and cannot be changed later.
+// ==========================================
+// TELEGRAM MINI APP AUTHENTICATION
+// ==========================================
+
+function verifyInitData(initData, botToken) {
+  if (!initData || !botToken) return null;
+
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+
+    if (!hash) return null;
+
+    params.delete('hash');
+
+    const checkString = [...params.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
+
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(botToken)
+      .digest();
+
+    const calculated = crypto
+      .createHmac('sha256', secretKey)
+      .update(checkString)
+      .digest('hex');
+
+    const a = Buffer.from(calculated, 'hex');
+    const b = Buffer.from(hash, 'hex');
+
+    if (
+      a.length !== b.length ||
+      !crypto.timingSafeEqual(a, b)
+    ) {
+      return null;
+    }
+
+    const authDate = Number(params.get('auth_date') || 0);
+    const now = Math.floor(Date.now() / 1000);
+
+    if (
+      !authDate ||
+      now - authDate > 3600 ||
+      authDate > now + 60
+    ) {
+      return null;
+    }
+
+    const user = params.get('user');
+    if (!user) return null;
+
+    const parsed = JSON.parse(user);
+    parsed._startParam = params.get('start_param') || '';
+
+    return parsed;
+  } catch (error) {
+    console.error('InitData verification failed:', error.message);
+    return null;
+  }
+}
+
+function readInitData(req) {
+  const header = req.headers.authorization || '';
+  return header.startsWith('tma ') ? header.slice(4) : '';
+}
+
+// User Bot authentication
+async function telegramAuth(req, res, next) {
+  const user = verifyInitData(readInitData(req), BOT_TOKEN);
+
+  if (!user?.id) {
+    return res.status(401).json({
+      success: false,
+      error: 'Telegram authentication failed. Open this app from the bot.'
+    });
+  }
+
+  req.telegramUser = {
+    id: String(user.id),
+    username: user.username || null,
+    firstName: user.first_name || null,
+    lastName: user.last_name || null,
+    startParam: user._startParam || ''
+  };
+
+  // Maintenance mode: allow the config endpoint so the app
+  // can display the maintenance message.
+  try {
+    if (req.path !== '/api/app-config') {
+      const snap = await getDb()
+        .collection('appConfig')
+        .doc('settings')
+        .get();
+
+      if (snap.exists && snap.data().maintenance === true) {
+        return res.status(503).json({
+          success: false,
+          maintenance: true,
+          error: String(
+            snap.data().maintenanceMessage ||
+            DEFAULT_APP_SETTINGS.maintenanceMessage
+          )
+        });
+      }
+    }
+  } catch (error) {
+    return sendError(res, error, 'Could not verify app status.');
+  }
+
+  next();
+}
+
+// Admin Bot authentication
+async function adminAuth(req, res, next) {
+  const user = verifyInitData(
+    readInitData(req),
+    ADMIN_BOT_TOKEN
+  );
+
+  if (!user?.id) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid Admin Bot InitData'
+    });
+  }
+
+  if (!ADMIN_ID || String(user.id) !== ADMIN_ID) {
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied'
+    });
+  }
+
+  req.adminUser = user;
+  next();
+}
+
+// ==========================================
+// REGISTER TELEGRAM USER
+// ==========================================
+
 async function registerTelegramUser(tg, referralPayload = '') {
   const db = getDb();
   const uid = String(tg.id);
-  const uRef = userRef(db, uid);
+  const ref = userRef(db, uid);
   const inviterId = parseReferralPayload(referralPayload);
 
   return db.runTransaction(async tx => {
-    const existing = await tx.get(uRef);
+    const existing = await tx.get(ref);
     const now = new Date().toISOString();
 
     if (existing.exists) {
@@ -277,7 +345,7 @@ async function registerTelegramUser(tg, referralPayload = '') {
         throw new Error('ACCOUNT_SUSPENDED');
       }
 
-      tx.update(uRef, {
+      tx.update(ref, {
         username: tg.username || null,
         firstName: tg.firstName || null,
         lastName: tg.lastName || null,
@@ -303,23 +371,21 @@ async function registerTelegramUser(tg, referralPayload = '') {
 
     const fresh = newUserRecord(tg, now);
 
-    if (inviterSnap?.exists && inviterSnap.data().status !== 'banned' && referralRef) {
-      fresh.referredBy = inviterId;
-
-      const oldReferral = await tx.get(referralRef);
-      if (oldReferral.exists) {
-        fresh.referredBy = null;
-      }
-    }
-
-    tx.create(uRef, fresh);
-
     if (
-      fresh.referredBy &&
       inviterSnap?.exists &&
       inviterSnap.data().status !== 'banned' &&
       referralRef
     ) {
+      const oldReferral = await tx.get(referralRef);
+
+      if (!oldReferral.exists) {
+        fresh.referredBy = inviterId;
+      }
+    }
+
+    tx.create(ref, fresh);
+
+    if (fresh.referredBy && inviterSnap?.exists && referralRef) {
       tx.create(referralRef, {
         referrerId: inviterId,
         referredUserId: uid,
@@ -342,6 +408,10 @@ async function registerTelegramUser(tg, referralPayload = '') {
   });
 }
 
+// ==========================================
+// TELEGRAM BOT API & WEBHOOK
+// ==========================================
+
 async function telegramApi(method, payload = {}) {
   if (!BOT_TOKEN) {
     throw new Error('TELEGRAM_BOT_TOKEN is missing.');
@@ -359,48 +429,46 @@ async function telegramApi(method, payload = {}) {
   const result = await response.json();
 
   if (!response.ok || !result.ok) {
-    throw new Error(result.description || `Telegram API ${method} failed.`);
+    throw new Error(result.description || 'Telegram API request failed.');
   }
 
   return result.result;
 }
 
-// Automatically connect USER Telegram /start to this Render server.
 async function configureTelegramWebhook() {
   if (!BOT_TOKEN || !WEBHOOK_PATH) {
-    console.warn('Telegram webhook not configured: TELEGRAM_BOT_TOKEN is missing.');
+    console.warn('User Bot webhook not configured.');
     return;
   }
 
-  const webhookUrl = `${PUBLIC_APP_URL}${WEBHOOK_PATH}`;
-
   try {
-    const botInfo = await telegramApi('getMe');
+    const info = await telegramApi('getMe');
 
     if (
-      String(botInfo.username || '').toLowerCase() !==
+      String(info.username || '').toLowerCase() !==
       TELEGRAM_BOT_USERNAME.toLowerCase()
     ) {
-      console.error(
-        `Bot token username mismatch. Expected @${TELEGRAM_BOT_USERNAME}, received @${botInfo.username || 'unknown'}. Webhook was not changed.`
-      );
+      console.error('User Bot username does not match environment setting.');
       return;
     }
 
     await telegramApi('setWebhook', {
-      url: webhookUrl,
+      url: `${PUBLIC_APP_URL}${WEBHOOK_PATH}`,
       secret_token: WEBHOOK_SECRET,
       allowed_updates: ['message'],
       drop_pending_updates: false
     });
 
-    console.log('Telegram /start webhook configured.');
+    console.log('User Bot webhook configured.');
   } catch (error) {
-    console.error('Telegram webhook setup failed:', error.message);
+    console.error('Webhook setup failed:', error.message);
   }
 }
 
+// ==========================================
 // HEALTH CHECK
+// ==========================================
+
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -408,14 +476,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// TELEGRAM USER BOT /START WEBHOOK
+// ==========================================
+// USER BOT /START WEBHOOK
+// ==========================================
+
 if (WEBHOOK_PATH) {
   app.post(WEBHOOK_PATH, async (req, res) => {
-    if (req.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
+    if (
+      req.get('X-Telegram-Bot-Api-Secret-Token') !==
+      WEBHOOK_SECRET
+    ) {
       return res.sendStatus(401);
     }
 
-    // Telegram expects a fast 200 response.
     res.sendStatus(200);
 
     try {
@@ -455,36 +528,35 @@ if (WEBHOOK_PATH) {
         }
       });
     } catch (error) {
-      console.error('Telegram /start handling failed:', error.message);
+      console.error('/start failed:', error.message);
     }
   });
 }
 
-// USER AUTH
+// ==========================================
+// USER AUTH & PROFILE
+// ==========================================
+
 app.post('/api/auth', telegramAuth, async (req, res) => {
   try {
-    const result = await registerTelegramUser(
+    const data = await registerTelegramUser(
       req.telegramUser,
       req.telegramUser.startParam
     );
 
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (e) {
-    if (e.message === 'ACCOUNT_SUSPENDED') {
+    res.json({ success: true, data });
+  } catch (error) {
+    if (error.message === 'ACCOUNT_SUSPENDED') {
       return res.status(403).json({
         success: false,
         error: 'Your account is suspended.'
       });
     }
 
-    sendError(res, e, 'Could not sign in.');
+    sendError(res, error, 'Could not sign in.');
   }
 });
 
-// USER PROFILE
 app.get('/api/me', telegramAuth, async (req, res) => {
   try {
     const snap = await requireActiveUser(
@@ -492,30 +564,100 @@ app.get('/api/me', telegramAuth, async (req, res) => {
       req.telegramUser.id
     );
 
-    res.json({
-      success: true,
-      data: snap.data()
-    });
-  } catch (e) {
-    if (e.message === 'USER_NOT_FOUND') {
+    res.json({ success: true, data: snap.data() });
+  } catch (error) {
+    if (error.message === 'USER_NOT_FOUND') {
       return res.status(404).json({
         success: false,
         error: 'User not found. Reopen the app.'
       });
     }
 
-    if (e.message === 'ACCOUNT_SUSPENDED') {
+    if (error.message === 'ACCOUNT_SUSPENDED') {
       return res.status(403).json({
         success: false,
-        error: 'Your account is suspended.'
+        error: 'Account suspended.'
       });
     }
 
-    sendError(res, e, 'Could not load profile.');
+    sendError(res, error, 'Could not load profile.');
   }
 });
 
-// ADS
+app.patch('/api/profile', telegramAuth, async (req, res) => {
+  try {
+    const uid = req.telegramUser.id;
+    const allowed = {};
+
+    if (typeof req.body.phone === 'string') {
+      allowed.phone = req.body.phone.trim().slice(0, 30);
+    }
+
+    if (typeof req.body.email === 'string') {
+      allowed.email = req.body.email.trim().slice(0, 100);
+    }
+
+    if (!Object.keys(allowed).length) {
+      return res.status(400).json({
+        success: false,
+        error: 'No profile fields provided.'
+      });
+    }
+
+    await requireActiveUser(getDb(), uid);
+    await userRef(getDb(), uid).update(allowed);
+
+    res.json({ success: true, message: 'Profile updated.' });
+  } catch (error) {
+    sendError(res, error, 'Could not update profile.');
+  }
+});
+
+// ==========================================
+// USER APP CONFIG
+// ==========================================
+
+app.get('/api/app-config', telegramAuth, async (req, res) => {
+  try {
+    await requireActiveUser(getDb(), req.telegramUser.id);
+
+    const db = getDb();
+
+    const [settingsSnap, paymentSnap] = await Promise.all([
+      db.collection('appConfig').doc('settings').get(),
+      db.collection('appConfig').doc('payments').get()
+    ]);
+
+    const settings = {
+      ...DEFAULT_APP_SETTINGS,
+      ...(settingsSnap.exists ? settingsSnap.data() : {})
+    };
+
+    const payments = {
+      ...DEFAULT_PAYMENT_SETTINGS,
+      ...(paymentSnap.exists ? paymentSnap.data() : {})
+    };
+
+    res.json({
+      success: true,
+      data: {
+        appName: settings.appName,
+        maintenance: settings.maintenance === true,
+        maintenanceMessage: settings.maintenanceMessage,
+        supportUrl: settings.supportUrl,
+        minWithdraw: settings.minWithdraw,
+        payments
+      }
+    });
+  } catch (error) {
+    sendError(res, error, 'Could not load app configuration.');
+  }
+});
+
+// ==========================================
+// USER ADVERTISEMENTS
+// ==========================================
+
 app.get('/api/ads', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -523,19 +665,20 @@ app.get('/api/ads', telegramAuth, async (req, res) => {
 
     await requireActiveUser(db, uid);
 
-    const snap = await db.collection('advertisements')
-      .where('status', '==', 'active')
-      .get();
-
-    const claims = await db.collection('adClaims')
-      .where('userId', '==', uid)
-      .get();
+    const [adsSnap, claimsSnap] = await Promise.all([
+      db.collection('advertisements')
+        .where('status', '==', 'active')
+        .get(),
+      db.collection('adClaims')
+        .where('userId', '==', uid)
+        .get()
+    ]);
 
     const claimed = new Set(
-      claims.docs.map(d => d.data().adId)
+      claimsSnap.docs.map(d => d.data().adId)
     );
 
-    const ads = snap.docs
+    const ads = adsSnap.docs
       .filter(d => !claimed.has(d.id))
       .map(d => {
         const x = d.data();
@@ -551,16 +694,12 @@ app.get('/api/ads', telegramAuth, async (req, res) => {
         };
       });
 
-    res.json({
-      success: true,
-      data: ads
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not load advertisements.');
+    res.json({ success: true, data: ads });
+  } catch (error) {
+    sendError(res, error, 'Could not load advertisements.');
   }
 });
 
-// START AD
 app.post('/api/ads/:id/start', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -579,7 +718,6 @@ app.post('/api/ads/:id/start', telegramAuth, async (req, res) => {
     }
 
     const ad = adSnap.data();
-
     const duration = Math.max(
       20,
       Math.min(300, Math.floor(Number(ad.duration) || 20))
@@ -623,19 +761,18 @@ app.post('/api/ads/:id/start', telegramAuth, async (req, res) => {
         duration
       }
     });
-  } catch (e) {
-    if (e.message === 'ALREADY_CLAIMED') {
+  } catch (error) {
+    if (error.message === 'ALREADY_CLAIMED') {
       return res.status(409).json({
         success: false,
         error: 'Already completed this ad.'
       });
     }
 
-    sendError(res, e, 'Could not start ad.');
+    sendError(res, error, 'Could not start ad.');
   }
 });
 
-// COMPLETE AD
 app.post('/api/ads/complete', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -653,16 +790,16 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
     const uRef = userRef(db, uid);
 
     const result = await db.runTransaction(async tx => {
-      const [ss, us] = await Promise.all([
+      const [session, user] = await Promise.all([
         tx.get(sessionRef),
         tx.get(uRef)
       ]);
 
-      if (!ss.exists) throw new Error('SESSION_NOT_FOUND');
-      if (!us.exists) throw new Error('USER_NOT_FOUND');
+      if (!session.exists) throw new Error('SESSION_NOT_FOUND');
+      if (!user.exists) throw new Error('USER_NOT_FOUND');
 
-      const s = ss.data();
-      const u = us.data();
+      const s = session.data();
+      const u = user.data();
 
       if (s.userId !== uid) throw new Error('SESSION_FORBIDDEN');
       if (s.status !== 'started') throw new Error('SESSION_USED');
@@ -711,10 +848,11 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
       }
 
       const day = todayKey();
-
       const today = u.earningsDate === day
         ? Number(u.todayEarnings || 0) + reward
         : reward;
+
+      const now = new Date().toISOString();
 
       tx.update(uRef, {
         balance: Number(u.balance || 0) + reward,
@@ -727,51 +865,51 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
         userId: uid,
         adId: s.adId,
         reward,
-        completedAt: new Date().toISOString()
+        completedAt: now
       });
 
       tx.update(sessionRef, {
         status: 'completed',
-        completedAt: new Date().toISOString()
+        completedAt: now
       });
 
       if (
         referralSnap?.exists &&
         referralSnap.data().status !== 'successful'
       ) {
-        const referralData = referralSnap.data();
+        const referral = referralSnap.data();
 
-        const nextCompletedAds = Math.min(
+        const completed = Math.min(
           REQUIRED_REFERRAL_ADS,
-          Number(referralData.completedAds || 0) + 1
+          Number(referral.completedAds || 0) + 1
         );
 
-        const nowIso = new Date().toISOString();
-        const becameSuccessful = nextCompletedAds >= REQUIRED_REFERRAL_ADS;
+        const successful = completed >= REQUIRED_REFERRAL_ADS;
 
         tx.update(referralRef, {
-          completedAds: nextCompletedAds,
-          status: becameSuccessful ? 'successful' : 'in_progress',
-          updatedAt: nowIso,
-          ...(becameSuccessful ? { successfulAt: nowIso } : {})
+          completedAds: completed,
+          status: successful ? 'successful' : 'in_progress',
+          updatedAt: now,
+          ...(successful ? { successfulAt: now } : {})
         });
 
-        if (becameSuccessful && inviterSnap?.exists) {
+        if (successful && inviterSnap?.exists) {
           tx.update(inviterRef, {
-            referralsCount: Number(inviterSnap.data().referralsCount || 0) + 1
+            referralsCount:
+              Number(inviterSnap.data().referralsCount || 0) + 1
           });
         }
       }
 
-      const hist = db.collection('transactions').doc();
+      const historyRef = db.collection('transactions').doc();
 
-      tx.create(hist, {
+      tx.create(historyRef, {
         userId: uid,
         type: 'ad_reward',
         amount: reward,
         status: 'completed',
         note: 'Advertisement reward',
-        createdAt: new Date().toISOString()
+        createdAt: now
       });
 
       return {
@@ -780,12 +918,9 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
       };
     });
 
-    res.json({
-      success: true,
-      data: result
-    });
-  } catch (e) {
-    const map = {
+    res.json({ success: true, data: result });
+  } catch (error) {
+    const errors = {
       SESSION_NOT_FOUND: [404, 'Session not found.'],
       USER_NOT_FOUND: [404, 'User not found.'],
       SESSION_FORBIDDEN: [403, 'Forbidden.'],
@@ -797,12 +932,11 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
       INVALID_REWARD: [400, 'Invalid reward.']
     };
 
-    const [status, message] = map[e.message] || [
-      500,
-      'Could not complete ad.'
+    const [status, message] = errors[error.message] || [
+      500, 'Could not complete ad.'
     ];
 
-    if (status === 500) console.error(e);
+    if (status === 500) console.error(error);
 
     res.status(status).json({
       success: false,
@@ -811,7 +945,10 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
   }
 });
 
-// TASKS
+// ==========================================
+// USER TASKS
+// ==========================================
+
 app.get('/api/tasks', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -825,10 +962,7 @@ app.get('/api/tasks', telegramAuth, async (req, res) => {
     ]);
 
     const submitted = new Map(
-      submissions.docs.map(d => [
-        d.data().taskId,
-        d.data().status
-      ])
+      submissions.docs.map(d => [d.data().taskId, d.data().status])
     );
 
     res.json({
@@ -839,12 +973,11 @@ app.get('/api/tasks', telegramAuth, async (req, res) => {
         submissionStatus: submitted.get(d.id) || null
       }))
     });
-  } catch (e) {
-    sendError(res, e, 'Could not load tasks.');
+  } catch (error) {
+    sendError(res, error, 'Could not load tasks.');
   }
 });
 
-// SUBMIT TASK
 app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -852,8 +985,7 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
 
     await requireActiveUser(db, uid);
 
-    const taskRef = db.collection('tasks').doc(req.params.id);
-    const task = await taskRef.get();
+    const task = await db.collection('tasks').doc(req.params.id).get();
 
     if (!task.exists || task.data().status !== 'active') {
       return res.status(404).json({
@@ -862,9 +994,7 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
       });
     }
 
-    const proof = String(req.body.proof || '')
-      .trim()
-      .slice(0, 1000);
+    const proof = String(req.body.proof || '').trim().slice(0, 1000);
 
     if (task.data().requiresProof && !proof) {
       return res.status(400).json({
@@ -877,13 +1007,13 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
       .doc(`${uid}_${req.params.id}`);
 
     await db.runTransaction(async tx => {
-      const [old, userSnap] = await Promise.all([
+      const [old, user] = await Promise.all([
         tx.get(ref),
         tx.get(userRef(db, uid))
       ]);
 
       if (old.exists) throw new Error('ALREADY_SUBMITTED');
-      if (!userSnap.exists) throw new Error('USER_NOT_FOUND');
+      if (!user.exists) throw new Error('USER_NOT_FOUND');
 
       tx.create(ref, {
         userId: uid,
@@ -895,7 +1025,7 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
       });
 
       tx.update(userRef(db, uid), {
-        pendingTasks: Number(userSnap.data().pendingTasks || 0) + 1
+        pendingTasks: Number(user.data().pendingTasks || 0) + 1
       });
     });
 
@@ -903,31 +1033,34 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
       success: true,
       message: 'Task submitted for review.'
     });
-  } catch (e) {
-    if (e.message === 'ALREADY_SUBMITTED') {
+  } catch (error) {
+    if (error.message === 'ALREADY_SUBMITTED') {
       return res.status(409).json({
         success: false,
         error: 'You have already submitted this task.'
       });
     }
 
-    sendError(res, e, 'Could not submit task.');
+    sendError(res, error, 'Could not submit task.');
   }
 });
 
-// REFERRALS
+// ==========================================
+// USER REFERRALS
+// ==========================================
+
 app.get('/api/referrals', telegramAuth, async (req, res) => {
   try {
     const uid = req.telegramUser.id;
+    const db = getDb();
 
-    await requireActiveUser(getDb(), uid);
+    await requireActiveUser(db, uid);
 
-    const referralsSnap = await getDb()
-      .collection('referrals')
+    const snap = await db.collection('referrals')
       .where('referrerId', '==', uid)
       .get();
 
-    const referrals = referralsSnap.docs.map(doc => {
+    const referrals = snap.docs.map(doc => {
       const item = doc.data();
 
       return {
@@ -948,17 +1081,13 @@ app.get('/api/referrals', telegramAuth, async (req, res) => {
       x => x.status === 'successful'
     ).length;
 
-    const inProgressCount = referrals.filter(
-      x => x.status !== 'successful'
-    ).length;
-
     res.json({
       success: true,
       data: {
         count: successfulCount,
         successfulCount,
         totalCount: referrals.length,
-        inProgressCount,
+        inProgressCount: referrals.length - successfulCount,
         requiredSuccessfulReferrals: REQUIRED_SUCCESSFUL_REFERRALS,
         requiredAdsPerReferral: REQUIRED_REFERRAL_ADS,
         link: `https://t.me/${TELEGRAM_BOT_USERNAME}?start=ref_${uid}`,
@@ -966,43 +1095,43 @@ app.get('/api/referrals', telegramAuth, async (req, res) => {
         referrals
       }
     });
-  } catch (e) {
-    sendError(res, e, 'Could not load referrals.');
+  } catch (error) {
+    sendError(res, error, 'Could not load referrals.');
   }
 });
 
-// TRANSACTION HISTORY
+// ==========================================
+// USER TRANSACTION HISTORY
+// ==========================================
+
 app.get('/api/history', telegramAuth, async (req, res) => {
   try {
     const uid = req.telegramUser.id;
+    const db = getDb();
 
-    await requireActiveUser(getDb(), uid);
+    await requireActiveUser(db, uid);
 
-    const snap = await getDb()
-      .collection('transactions')
+    const snap = await db.collection('transactions')
       .where('userId', '==', uid)
       .get();
 
     const items = snap.docs
-      .map(d => ({
-        id: d.id,
-        ...d.data()
-      }))
+      .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) =>
-        String(b.createdAt).localeCompare(String(a.createdAt))
+        String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
       )
       .slice(0, 100);
 
-    res.json({
-      success: true,
-      data: items
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not load history.');
+    res.json({ success: true, data: items });
+  } catch (error) {
+    sendError(res, error, 'Could not load history.');
   }
 });
 
-// WITHDRAW
+// ==========================================
+// USER WITHDRAWAL
+// ==========================================
+
 app.post('/api/withdraw', telegramAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -1012,17 +1141,46 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
     const method = String(req.body.method || '').trim();
     const account = String(req.body.account || '').trim();
 
-    if (!Number.isFinite(amount) || amount < MIN_WITHDRAW) {
+    const [settingsSnap, paymentSnap] = await Promise.all([
+      db.collection('appConfig').doc('settings').get(),
+      db.collection('appConfig').doc('payments').get()
+    ]);
+
+    const currentMin = settingsSnap.exists
+      ? Number(settingsSnap.data().minWithdraw || MIN_WITHDRAW)
+      : MIN_WITHDRAW;
+
+    const payments = {
+      ...DEFAULT_PAYMENT_SETTINGS,
+      ...(paymentSnap.exists ? paymentSnap.data() : {})
+    };
+
+    const paymentKey = method === 'bKash'
+      ? 'bKash'
+      : method === 'Nagad'
+        ? 'Nagad'
+        : method === 'Binance USDT'
+          ? 'USDT'
+          : null;
+
+    if (!paymentKey || payments[paymentKey]?.enabled !== true) {
       return res.status(400).json({
         success: false,
-        error: `Minimum withdrawal is ৳${MIN_WITHDRAW}.`
+        error: 'This payment method is currently unavailable.'
       });
     }
 
-    if (!['bKash', 'Nagad', 'Binance USDT'].includes(method)) {
+    if (!Number.isFinite(amount) || amount < currentMin) {
       return res.status(400).json({
         success: false,
-        error: 'Select a valid payment method.'
+        error: `Minimum withdrawal is ${currentMin}.`
+      });
+    }
+
+    if (amount > 10000000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Withdrawal amount is too high.'
       });
     }
 
@@ -1037,13 +1195,14 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       .where('referrerId', '==', uid)
       .get();
 
-    const successfulReferrals = referralDocs.docs
-      .filter(doc => doc.data().status === 'successful').length;
+    const successful = referralDocs.docs.filter(
+      d => d.data().status === 'successful'
+    ).length;
 
-    if (successfulReferrals < REQUIRED_SUCCESSFUL_REFERRALS) {
+    if (successful < REQUIRED_SUCCESSFUL_REFERRALS) {
       return res.status(403).json({
         success: false,
-        error: `Withdrawal is locked. You need ${REQUIRED_SUCCESSFUL_REFERRALS} successful referrals. Your current successful referrals: ${successfulReferrals}.`
+        error: `Withdrawal locked. You need ${REQUIRED_SUCCESSFUL_REFERRALS} successful referrals. Current: ${successful}.`
       });
     }
 
@@ -1052,11 +1211,11 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
     const tRef = db.collection('transactions').doc();
 
     await db.runTransaction(async tx => {
-      const u = await tx.get(uRef);
+      const user = await tx.get(uRef);
 
-      if (!u.exists) throw new Error('USER_NOT_FOUND');
+      if (!user.exists) throw new Error('USER_NOT_FOUND');
 
-      const data = u.data();
+      const data = user.data();
 
       if (data.status === 'banned') {
         throw new Error('ACCOUNT_SUSPENDED');
@@ -1065,6 +1224,8 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       if (Number(data.balance || 0) < amount) {
         throw new Error('INSUFFICIENT_BALANCE');
       }
+
+      const now = new Date().toISOString();
 
       tx.update(uRef, {
         balance: Number(data.balance || 0) - amount
@@ -1078,7 +1239,7 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
         method,
         account,
         status: 'pending',
-        createdAt: new Date().toISOString()
+        createdAt: now
       });
 
       tx.create(tRef, {
@@ -1087,7 +1248,7 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
         amount: -amount,
         status: 'pending',
         note: `Withdrawal request (${method})`,
-        createdAt: new Date().toISOString(),
+        createdAt: now,
         referenceId: wRef.id
       });
     });
@@ -1096,75 +1257,44 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       success: true,
       message: 'Withdrawal request submitted.'
     });
-  } catch (e) {
-    const m = {
+  } catch (error) {
+    const map = {
       USER_NOT_FOUND: [404, 'User not found.'],
       ACCOUNT_SUSPENDED: [403, 'Account suspended.'],
       INSUFFICIENT_BALANCE: [400, 'Insufficient balance.']
     };
 
-    const [s, msg] = m[e.message] || [
-      500,
-      'Could not submit withdrawal.'
+    const [status, message] = map[error.message] || [
+      500, 'Could not submit withdrawal.'
     ];
 
-    if (s === 500) console.error(e);
+    if (status === 500) console.error(error);
 
-    res.status(s).json({
+    res.status(status).json({
       success: false,
-      error: msg
+      error: message
     });
   }
 });
 
-// PROFILE UPDATE
-app.patch('/api/profile', telegramAuth, async (req, res) => {
-  try {
-    const uid = req.telegramUser.id;
-    const allowed = {};
-
-    if (typeof req.body.phone === 'string') {
-      allowed.phone = req.body.phone.trim().slice(0, 30);
-    }
-
-    if (typeof req.body.email === 'string') {
-      allowed.email = req.body.email.trim().slice(0, 100);
-    }
-
-    await requireActiveUser(getDb(), uid);
-    await userRef(getDb(), uid).update(allowed);
-
-    res.json({
-      success: true,
-      message: 'Profile updated.'
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not update profile.');
-  }
-});
-
-// AD PLACEMENTS
-const AD_PLACEMENT_SLOTS = new Set([
-  'top',
-  'middle',
-  'bottom',
-  'gate'
-]);
+// ==========================================
+// USER AD PLACEMENTS
+// ==========================================
 
 app.get('/api/ad-placements', telegramAuth, async (req, res) => {
   try {
     await requireActiveUser(getDb(), req.telegramUser.id);
 
-    const snap = await getDb()
-      .collection('adPlacements')
-      .get();
-
+    const snap = await getDb().collection('adPlacements').get();
     const placements = {};
 
     snap.forEach(doc => {
       const item = doc.data();
 
-      if (AD_PLACEMENT_SLOTS.has(doc.id) && item.enabled === true) {
+      if (
+        AD_PLACEMENT_SLOTS.has(doc.id) &&
+        item.enabled === true
+      ) {
         placements[doc.id] = {
           slot: doc.id,
           label: String(item.label || 'Advertisement').slice(0, 60),
@@ -1173,214 +1303,144 @@ app.get('/api/ad-placements', telegramAuth, async (req, res) => {
       }
     });
 
-    res.json({
-      success: true,
-      data: placements
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not load ad placements.');
+    res.json({ success: true, data: placements });
+  } catch (error) {
+    sendError(res, error, 'Could not load ad placements.');
   }
 });
 
-app.get('/api/admin/ad-placements', adminAuth, async (req, res) => {
-  try {
-    const snap = await getDb()
-      .collection('adPlacements')
-      .get();
+// ==========================================
+// ADMIN DASHBOARD STATS
+// ==========================================
 
-    const data = {};
-
-    snap.forEach(doc => {
-      if (AD_PLACEMENT_SLOTS.has(doc.id)) {
-        data[doc.id] = {
-          slot: doc.id,
-          ...doc.data()
-        };
-      }
-    });
-
-    res.json({
-      success: true,
-      data
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not load ad placement settings.');
-  }
-});
-
-app.put('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
-  try {
-    const slot = String(req.params.slot || '');
-    const label = String(req.body.label || 'Advertisement')
-      .trim()
-      .slice(0, 60);
-
-    const html = String(req.body.html || '');
-    const enabled = req.body.enabled === true;
-
-    if (!AD_PLACEMENT_SLOTS.has(slot)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Unknown ad placement slot.'
-      });
-    }
-
-    if (html.length > 50000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Ad HTML must be 50 KB or less.'
-      });
-    }
-
-    await getDb()
-      .collection('adPlacements')
-      .doc(slot)
-      .set({
-        slot,
-        label,
-        html,
-        enabled,
-        updatedAt: new Date().toISOString()
-      }, {
-        merge: true
-      });
-
-    res.json({
-      success: true,
-      message: `Ad placement "${slot}" saved.`
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not save ad placement.');
-  }
-});
-
-app.delete('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
-  try {
-    const slot = String(req.params.slot || '');
-
-    if (!AD_PLACEMENT_SLOTS.has(slot)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Unknown ad placement slot.'
-      });
-    }
-
-    await getDb()
-      .collection('adPlacements')
-      .doc(slot)
-      .delete();
-
-    res.json({
-      success: true,
-      message: `Ad placement "${slot}" removed.`
-    });
-  } catch (e) {
-    sendError(res, e, 'Could not remove ad placement.');
-  }
-});
-
-// ADMIN STATS
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
   try {
     const db = getDb();
-    const users = await db.collection('users').get();
+
+    const [users, pending] = await Promise.all([
+      db.collection('users').get(),
+      db.collection('withdrawals')
+        .where('status', '==', 'pending')
+        .get()
+    ]);
 
     let totalBalance = 0;
     let activeUsers = 0;
+    let bannedUsers = 0;
 
-    users.forEach(d => {
-      const x = d.data();
-      totalBalance += Number(x.balance || 0);
+    users.forEach(doc => {
+      const data = doc.data();
 
-      if (x.status === 'active') activeUsers++;
+      totalBalance += Number(data.balance || 0);
+
+      if (data.status === 'active') activeUsers++;
+      if (data.status === 'banned') bannedUsers++;
     });
-
-    const pending = await db.collection('withdrawals')
-      .where('status', '==', 'pending')
-      .get();
 
     res.json({
       success: true,
       data: {
         totalUsers: users.size,
         activeUsers,
+        bannedUsers,
         totalBalance,
         pendingWithdraws: pending.size
       }
     });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not load dashboard stats.');
   }
 });
 
+// ==========================================
 // ADMIN USERS
+// ==========================================
+
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
-    const s = await getDb().collection('users').get();
+    const snap = await getDb().collection('users').get();
 
     res.json({
       success: true,
-      data: s.docs.map(d => d.data())
-    });
-  } catch (e) {
-    sendError(res, e);
-  }
-});
-
-// ADMIN BAN
-app.post('/api/admin/ban', adminAuth, async (req, res) => {
-  try {
-    const { telegramId, status } = req.body;
-
-    if (!telegramId || !['active', 'banned'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid user/status'
-      });
-    }
-
-    await userRef(getDb(), telegramId).update({ status });
-
-    res.json({ success: true });
-  } catch (e) {
-    sendError(res, e);
-  }
-});
-
-// ADMIN ADS
-app.get('/api/admin/ads', adminAuth, async (req, res) => {
-  try {
-    const s = await getDb().collection('advertisements').get();
-
-    res.json({
-      success: true,
-      data: s.docs.map(d => ({
+      data: snap.docs.map(d => ({
         id: d.id,
         ...d.data()
       }))
     });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not load users.');
+  }
+});
+
+app.post('/api/admin/ban', adminAuth, async (req, res) => {
+  try {
+    const telegramId = String(req.body.telegramId || '');
+    const status = req.body.status;
+
+    if (
+      !/^\d{1,20}$/.test(telegramId) ||
+      !['active', 'banned'].includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user or status.'
+      });
+    }
+
+    const ref = userRef(getDb(), telegramId);
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found.'
+      });
+    }
+
+    await ref.update({ status });
+
+    res.json({ success: true });
+  } catch (error) {
+    sendError(res, error, 'Could not update user status.');
+  }
+});
+
+// ==========================================
+// ADMIN ADVERTISEMENTS
+// ==========================================
+
+app.get('/api/admin/ads', adminAuth, async (req, res) => {
+  try {
+    const snap = await getDb().collection('advertisements').get();
+
+    res.json({
+      success: true,
+      data: snap.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }))
+    });
+  } catch (error) {
+    sendError(res, error, 'Could not load ads.');
   }
 });
 
 app.post('/api/admin/ads', adminAuth, async (req, res) => {
   try {
-    const { title, url, reward, duration } = req.body;
-    const u = new URL(String(url));
-
-    const r = Number(reward);
-    const d = Number(duration);
+    const title = String(req.body.title || '').trim();
+    const url = new URL(String(req.body.url || ''));
+    const reward = Number(req.body.reward);
+    const duration = Number(req.body.duration);
 
     if (
-      !['http:', 'https:'].includes(u.protocol) ||
-      !String(title || '').trim() ||
-      !Number.isFinite(r) ||
-      r <= 0 ||
-      r > 1000 ||
-      !Number.isInteger(d) ||
-      d < 20 ||
-      d > 300
+      !title ||
+      !['http:', 'https:'].includes(url.protocol) ||
+      !Number.isFinite(reward) ||
+      reward <= 0 ||
+      reward > 1000 ||
+      !Number.isInteger(duration) ||
+      duration < 20 ||
+      duration > 300
     ) {
       return res.status(400).json({
         success: false,
@@ -1392,110 +1452,126 @@ app.post('/api/admin/ads', adminAuth, async (req, res) => {
 
     await ref.set({
       id: ref.id,
-      title: String(title).trim(),
-      url: u.toString(),
-      reward: r,
-      duration: d,
+      title,
+      url: url.toString(),
+      reward,
+      duration,
       status: 'active',
       createdAt: new Date().toISOString()
     });
 
-    res.json({ success: true });
-  } catch (e) {
-    sendError(res, e, 'Could not create ad.');
+    res.json({ success: true, data: { id: ref.id } });
+  } catch (error) {
+    sendError(res, error, 'Could not create ad.');
   }
 });
 
 app.delete('/api/admin/ads/:id', adminAuth, async (req, res) => {
   try {
-    await getDb()
-      .collection('advertisements')
+    await getDb().collection('advertisements')
       .doc(req.params.id)
       .delete();
 
     res.json({ success: true });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not delete ad.');
   }
 });
 
+// ==========================================
 // ADMIN TASKS
+// ==========================================
+
 app.get('/api/admin/tasks', adminAuth, async (req, res) => {
   try {
-    const s = await getDb().collection('tasks').get();
+    const snap = await getDb().collection('tasks').get();
 
     res.json({
       success: true,
-      data: s.docs.map(d => ({
+      data: snap.docs.map(d => ({
         id: d.id,
         ...d.data()
       }))
     });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not load tasks.');
   }
 });
 
 app.post('/api/admin/tasks', adminAuth, async (req, res) => {
   try {
-    const { title, url, reward, requiresProof } = req.body;
-    const r = Number(reward);
+    const title = String(req.body.title || '').trim();
+    const url = String(req.body.url || '').trim();
+    const reward = Number(req.body.reward);
+    const requiresProof = req.body.requiresProof === true;
 
-    if (!String(title || '').trim() || !Number.isFinite(r) || r < 0) {
+    if (!title || !Number.isFinite(reward) || reward < 0 || reward > 100000) {
       return res.status(400).json({
         success: false,
         error: 'Invalid task fields.'
       });
     }
 
+    if (url) {
+      const parsed = new URL(url);
+
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid task URL.'
+        });
+      }
+    }
+
     const ref = getDb().collection('tasks').doc();
 
     await ref.set({
       id: ref.id,
-      title: String(title).trim(),
-      url: String(url || ''),
-      reward: r,
-      requiresProof: !!requiresProof,
+      title,
+      url,
+      reward,
+      requiresProof,
       status: 'active',
       createdAt: new Date().toISOString()
     });
 
-    res.json({ success: true });
-  } catch (e) {
-    sendError(res, e);
+    res.json({ success: true, data: { id: ref.id } });
+  } catch (error) {
+    sendError(res, error, 'Could not create task.');
   }
 });
 
 app.delete('/api/admin/tasks/:id', adminAuth, async (req, res) => {
   try {
-    await getDb()
-      .collection('tasks')
+    await getDb().collection('tasks')
       .doc(req.params.id)
       .delete();
 
     res.json({ success: true });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not delete task.');
   }
 });
 
+// ==========================================
 // ADMIN WITHDRAWALS
+// ==========================================
+
 app.get('/api/admin/withdrawals', adminAuth, async (req, res) => {
   try {
-    const s = await getDb()
-      .collection('withdrawals')
+    const snap = await getDb().collection('withdrawals')
       .orderBy('createdAt', 'desc')
       .get();
 
     res.json({
       success: true,
-      data: s.docs.map(d => ({
+      data: snap.docs.map(d => ({
         id: d.id,
         ...d.data()
       }))
     });
-  } catch (e) {
-    sendError(res, e);
+  } catch (error) {
+    sendError(res, error, 'Could not load withdrawals.');
   }
 });
 
@@ -1514,72 +1590,443 @@ app.post('/api/admin/withdrawals/:id', adminAuth, async (req, res) => {
     const wRef = db.collection('withdrawals').doc(req.params.id);
 
     await db.runTransaction(async tx => {
-      const w = await tx.get(wRef);
+      const withdrawal = await tx.get(wRef);
 
-      if (!w.exists) throw new Error('NOT_FOUND');
+      if (!withdrawal.exists) throw new Error('NOT_FOUND');
 
-      const x = w.data();
+      const data = withdrawal.data();
 
-      if (x.status !== 'pending') {
+      if (data.status !== 'pending') {
         throw new Error('ALREADY_PROCESSED');
       }
 
-      const uRef = userRef(db, x.userId);
-      const u = await tx.get(uRef);
+      const uRef = userRef(db, data.userId);
+      const user = await tx.get(uRef);
+
+      if (!user.exists) throw new Error('USER_NOT_FOUND');
+
+      const now = new Date().toISOString();
 
       tx.update(wRef, {
         status,
-        updatedAt: new Date().toISOString()
+        updatedAt: now
       });
 
-      if (u.exists && status === 'rejected') {
+      if (status === 'rejected') {
         tx.update(uRef, {
-          balance: Number(u.data().balance || 0) + Number(x.amount || 0)
+          balance: Number(user.data().balance || 0) +
+            Number(data.amount || 0)
+        });
+      } else {
+        tx.update(uRef, {
+          withdrawnAmount: Number(user.data().withdrawnAmount || 0) +
+            Number(data.amount || 0)
         });
       }
 
-      if (u.exists && status === 'approved') {
-        tx.update(uRef, {
-          withdrawnAmount: Number(u.data().withdrawnAmount || 0) + Number(x.amount || 0)
-        });
-      }
+      const transaction = db.collection('transactions').doc();
 
-      const t = db.collection('transactions').doc();
-
-      tx.create(t, {
-        userId: x.userId,
+      tx.create(transaction, {
+        userId: data.userId,
         type: 'withdrawal',
         amount: status === 'rejected'
-          ? Number(x.amount)
-          : -Number(x.amount),
+          ? Number(data.amount)
+          : -Number(data.amount),
         status,
         note: `Withdrawal ${status}`,
         referenceId: wRef.id,
-        createdAt: new Date().toISOString()
+        createdAt: now
       });
     });
 
     res.json({ success: true });
-  } catch (e) {
-    if (e.message === 'NOT_FOUND') {
-      return res.status(404).json({
-        success: false,
-        error: 'Not found'
-      });
-    }
+  } catch (error) {
+    const map = {
+      NOT_FOUND: [404, 'Withdrawal not found.'],
+      ALREADY_PROCESSED: [409, 'Already processed.'],
+      USER_NOT_FOUND: [404, 'Withdrawal user not found.']
+    };
 
-    if (e.message === 'ALREADY_PROCESSED') {
-      return res.status(409).json({
-        success: false,
-        error: 'Already processed'
-      });
-    }
+    const [status, message] = map[error.message] || [
+      500, 'Could not process withdrawal.'
+    ];
 
-    sendError(res, e);
+    if (status === 500) console.error(error);
+
+    res.status(status).json({
+      success: false,
+      error: message
+    });
   }
 });
 
+// ==========================================
+// ADMIN AD PLACEMENTS
+// ==========================================
+
+app.get('/api/admin/ad-placements', adminAuth, async (req, res) => {
+  try {
+    const snap = await getDb().collection('adPlacements').get();
+    const data = {};
+
+    snap.forEach(doc => {
+      if (AD_PLACEMENT_SLOTS.has(doc.id)) {
+        data[doc.id] = {
+          slot: doc.id,
+          ...doc.data()
+        };
+      }
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    sendError(res, error, 'Could not load ad placements.');
+  }
+});
+
+app.put('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
+  try {
+    const slot = String(req.params.slot || '');
+
+    if (!AD_PLACEMENT_SLOTS.has(slot)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Unknown ad placement slot.'
+      });
+    }
+
+    const label = String(req.body.label || 'Advertisement')
+      .trim().slice(0, 60);
+
+    const html = String(req.body.html || '');
+    const enabled = req.body.enabled === true;
+
+    if (html.length > 50000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Ad HTML must be 50 KB or less.'
+      });
+    }
+
+    await getDb().collection('adPlacements').doc(slot).set({
+      slot,
+      label,
+      html,
+      enabled,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    res.json({
+      success: true,
+      message: `Ad placement "${slot}" saved.`
+    });
+  } catch (error) {
+    sendError(res, error, 'Could not save ad placement.');
+  }
+});
+
+app.delete('/api/admin/ad-placements/:slot', adminAuth, async (req, res) => {
+  try {
+    const slot = String(req.params.slot || '');
+
+    if (!AD_PLACEMENT_SLOTS.has(slot)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Unknown ad placement slot.'
+      });
+    }
+
+    await getDb().collection('adPlacements').doc(slot).delete();
+
+    res.json({ success: true });
+  } catch (error) {
+    sendError(res, error, 'Could not remove ad placement.');
+  }
+});
+
+// ==========================================
+// ADMIN APP SETTINGS
+// ==========================================
+
+app.get('/api/admin/settings', adminAuth, async (req, res) => {
+  try {
+    const snap = await getDb()
+      .collection('appConfig')
+      .doc('settings')
+      .get();
+
+    res.json({
+      success: true,
+      data: {
+        ...DEFAULT_APP_SETTINGS,
+        ...(snap.exists ? snap.data() : {})
+      }
+    });
+  } catch (error) {
+    sendError(res, error, 'Could not load settings.');
+  }
+});
+
+app.put('/api/admin/settings', adminAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    const settings = {
+      appName: String(body.appName || 'EarnWallet')
+        .trim().slice(0, 60),
+      maintenance: body.maintenance === true,
+      maintenanceMessage: String(
+        body.maintenanceMessage ||
+        DEFAULT_APP_SETTINGS.maintenanceMessage
+      ).trim().slice(0, 500),
+      supportUrl: String(body.supportUrl || '').trim().slice(0, 500),
+      minWithdraw: Number(body.minWithdraw)
+    };
+
+    if (
+      !Number.isFinite(settings.minWithdraw) ||
+      settings.minWithdraw < 1 ||
+      settings.minWithdraw > 1000000
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid minimum withdrawal.'
+      });
+    }
+
+    if (settings.supportUrl) {
+      const parsed = new URL(settings.supportUrl);
+
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid support URL.'
+        });
+      }
+    }
+
+    await getDb().collection('appConfig').doc('settings').set({
+      ...settings,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    sendError(res, error, 'Could not save settings.');
+  }
+});
+
+// ==========================================
+// ADMIN PAYMENT SETTINGS
+// ==========================================
+
+app.get('/api/admin/payment-settings', adminAuth, async (req, res) => {
+  try {
+    const snap = await getDb()
+      .collection('appConfig')
+      .doc('payments')
+      .get();
+
+    res.json({
+      success: true,
+      data: {
+        ...DEFAULT_PAYMENT_SETTINGS,
+        ...(snap.exists ? snap.data() : {})
+      }
+    });
+  } catch (error) {
+    sendError(res, error, 'Could not load payment settings.');
+  }
+});
+
+app.put('/api/admin/payment-settings', adminAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const methods = {};
+
+    for (const method of ['bKash', 'Nagad', 'USDT']) {
+      methods[method] = {
+        enabled: body[method]?.enabled === true,
+        label: method === 'USDT' ? 'Binance USDT' : method
+      };
+    }
+
+    await getDb().collection('appConfig').doc('payments').set({
+      ...methods,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    res.json({ success: true, data: methods });
+  } catch (error) {
+    sendError(res, error, 'Could not save payment settings.');
+  }
+});
+
+// ==========================================
+// ADMIN DATABASE BACKUP
+// ==========================================
+
+const BACKUP_COLLECTIONS = [
+  'users',
+  'advertisements',
+  'adClaims',
+  'watchSessions',
+  'tasks',
+  'taskSubmissions',
+  'referrals',
+  'transactions',
+  'withdrawals',
+  'adPlacements',
+  'appConfig'
+];
+
+app.get('/api/admin/backup', adminAuth, async (req, res) => {
+  try {
+    const db = getDb();
+
+    const backup = {
+      app: 'EarnWallet',
+      formatVersion: 1,
+      createdAt: new Date().toISOString(),
+      collections: {}
+    };
+
+    let total = 0;
+
+    for (const name of BACKUP_COLLECTIONS) {
+      const snap = await db.collection(name).get();
+      backup.collections[name] = {};
+
+      for (const doc of snap.docs) {
+        total++;
+
+        if (total > 5000) {
+          return res.status(413).json({
+            success: false,
+            error: 'Backup is limited to 5000 documents.'
+          });
+        }
+
+        backup.collections[name][doc.id] = doc.data();
+      }
+    }
+
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="earnwallet-backup-${Date.now()}.json"`
+    );
+
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(backup));
+  } catch (error) {
+    sendError(res, error, 'Could not create backup.');
+  }
+});
+
+// ==========================================
+// ADMIN DATABASE RESTORE
+// Safe MERGE restore. Does not delete documents.
+// ==========================================
+
+app.post('/api/admin/restore', adminAuth, async (req, res) => {
+  try {
+    const backup = req.body;
+
+    if (
+      !backup ||
+      backup.app !== 'EarnWallet' ||
+      backup.formatVersion !== 1 ||
+      !backup.collections ||
+      typeof backup.collections !== 'object' ||
+      Array.isArray(backup.collections)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid EarnWallet backup file.'
+      });
+    }
+
+    const db = getDb();
+
+    let batch = db.batch();
+    let batchCount = 0;
+    let restored = 0;
+
+    for (const name of Object.keys(backup.collections)) {
+      if (!BACKUP_COLLECTIONS.includes(name)) continue;
+
+      const docs = backup.collections[name];
+
+      if (
+        !docs ||
+        typeof docs !== 'object' ||
+        Array.isArray(docs)
+      ) {
+        continue;
+      }
+
+      for (const [id, data] of Object.entries(docs)) {
+        if (
+          !id ||
+          id.length > 500 ||
+          id.includes('/') ||
+          !data ||
+          typeof data !== 'object' ||
+          Array.isArray(data)
+        ) {
+          continue;
+        }
+
+        restored++;
+
+        if (restored > 5000) {
+          throw new Error('RESTORE_LIMIT_EXCEEDED');
+        }
+
+        batch.set(
+          db.collection(name).doc(id),
+          data,
+          { merge: true }
+        );
+
+        batchCount++;
+
+        if (batchCount >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          batchCount = 0;
+        }
+      }
+    }
+
+    if (batchCount) {
+      await batch.commit();
+    }
+
+    res.json({
+      success: true,
+      message: 'Backup restored using safe merge.',
+      data: {
+        restoredDocuments: restored,
+        deletedDocuments: 0
+      }
+    });
+  } catch (error) {
+    if (error.message === 'RESTORE_LIMIT_EXCEEDED') {
+      return res.status(413).json({
+        success: false,
+        error: 'Restore is limited to 5000 documents.'
+      });
+    }
+
+    sendError(res, error, 'Could not restore backup.');
+  }
+});
+
+// ==========================================
 // FRONTEND SERVING
+// ==========================================
+
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'admin.html'));
 });
@@ -1590,9 +2037,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
+// ==========================================
 // START SERVER
+// ==========================================
+
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`EarnWallet server running on port ${PORT}`);
   console.log(`Frontend directory: ${PUBLIC_DIR}`);
+
   configureTelegramWebhook();
 });
