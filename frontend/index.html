@@ -2,17 +2,129 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Watch & Earn</title>
-  <link rel="stylesheet" href="css/style.css">
+  <!-- Telegram WebApp Script -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Our CSS -->
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div id="app" style="padding: 20px; text-align: center;">
-    <h1 id="greeting">Loading...</h1>
-    <p id="status">Connecting to Telegram...</p>
-  </div>
 
-  <script src="js/app.js"></script>
+  <!-- Top Header -->
+  <header class="app-header">
+    <div class="user-info">
+      <img id="user-avatar" src="https://ui-avatars.com/api/?name=User&background=ff6600&color=fff" alt="Profile">
+      <div>
+        <p class="greeting">Welcome back,</p>
+        <h2 id="user-name">Loading...</h2>
+      </div>
+    </div>
+    <div class="settings-icon">
+      <i class="fa-solid fa-gear"></i>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Content -->
+  <main class="dashboard">
+    
+    <!-- Main Balance Card -->
+    <div class="balance-card">
+      <p>Total Balance</p>
+      <h1 id="balance-amount">৳ 0.00</h1>
+      <div class="balance-stats">
+        <div>
+          <p>Today's Earning</p>
+          <span id="today-earn">৳ 0.00</span>
+        </div>
+        <div>
+          <p>Total Earning</p>
+          <span id="total-earn">৳ 0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-box">
+        <i class="fa-solid fa-users" style="color: #3b82f6;"></i>
+        <h3 id="stat-refs">0</h3>
+        <p>Referrals</p>
+      </div>
+      <div class="stat-box">
+        <i class="fa-solid fa-clipboard-check" style="color: #10b981;"></i>
+        <h3 id="stat-tasks">0</h3>
+        <p>Completed</p>
+      </div>
+      <div class="stat-box">
+        <i class="fa-solid fa-clock" style="color: #f59e0b;"></i>
+        <h3 id="stat-pending">0</h3>
+        <p>Pending</p>
+      </div>
+      <div class="stat-box">
+        <i class="fa-solid fa-wallet" style="color: #ef4444;"></i>
+        <h3 id="stat-withdrawn">৳ 0</h3>
+        <p>Withdrawn</p>
+      </div>
+    </div>
+
+    <!-- Promo / Ad Banner Placeholder -->
+    <div class="ad-banner">
+      <p>Banner Ad Placement (Top)</p>
+    </div>
+
+    <!-- Quick Actions (Earn More) -->
+    <div class="section-title">
+      <h3>Earn More</h3>
+      <a href="#">See All</a>
+    </div>
+    
+    <div class="action-cards">
+      <div class="action-card">
+        <div class="icon-bg" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
+          <i class="fa-solid fa-play"></i>
+        </div>
+        <h4>Watch Ads</h4>
+        <p>Earn ৳ 0.50 per ad</p>
+      </div>
+      <div class="action-card">
+        <div class="icon-bg" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+        <h4>Daily Tasks</h4>
+        <p>Earn up to ৳ 10.00</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <a href="#" class="nav-item active">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-play-circle"></i>
+      <span>Earn</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-list-check"></i>
+      <span>Tasks</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-user-group"></i>
+      <span>Referral</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-user"></i>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Our JS -->
+  <script src="/app.js"></script>
 </body>
 </html>
