@@ -3,172 +3,359 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel - Watch & Earn</title>
+  <title>Admin Panel | Watch & Earn</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    /* ===== ADMIN PREMIUM DESIGN ===== */
     :root {
-      --bg: #0f111a;
-      --card: #1a1d2d;
-      --primary: #ff6b00;
-      --text: #ffffff;
-      --muted: #8b92b4;
+      --bg-main: #121212;
+      --bg-card: #1e1e1e;
+      --bg-hover: #2c2c2c;
+      --primary: #f59e0b; /* Golden/Amber instead of orange */
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border: #333333;
       --danger: #ef4444;
       --success: #10b981;
     }
+
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 80px; }
-    
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #2a2d3d; }
-    .header h1 { font-size: 20px; color: var(--primary); }
-    .header span { font-size: 12px; background: var(--danger); color: white; padding: 3px 8px; border-radius: 10px; }
+    body { background: var(--bg-main); color: var(--text-main); padding-bottom: 80px; }
 
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .stat-card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; }
-    .stat-card h3 { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-    .stat-card p { font-size: 20px; font-weight: bold; }
-
-    .section-title { font-size: 16px; margin-bottom: 10px; font-weight: bold; color: #fff; border-left: 3px solid var(--primary); padding-left: 8px; }
-
-    .user-list { display: flex; flex-direction: column; gap: 10px; }
-    .user-card { background: var(--card); padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-    .user-info h4 { font-size: 15px; margin-bottom: 3px; }
-    .user-info p { font-size: 12px; color: var(--muted); }
-    .user-balance { text-align: right; }
-    .user-balance p { font-size: 14px; font-weight: bold; color: var(--success); }
-    
-    .btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    .btn-danger { background: var(--danger); }
-
-    .loading { text-align: center; color: var(--muted); padding: 20px; }
-    
-    /* Bottom Navigation for Admin */
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card);
-      display: flex; justify-content: space-around; padding: 12px 0 20px;
-      border-top: 1px solid #2a2d3d; z-index: 100;
+    /* Header */
+    .admin-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px 20px; background: var(--bg-card); 
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 50;
     }
-    .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--muted); gap: 5px; font-size: 10px; }
-    .nav-item.active { color: var(--primary); }
-    .nav-item i { font-size: 18px; }
+    .admin-header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .admin-header h1 i { color: var(--primary); }
+    
+    /* 3-Dot Menu */
+    .menu-btn { background: none; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; padding: 5px; }
+    .dropdown-menu {
+      display: none; position: absolute; right: 20px; top: 50px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; width: 200px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 100;
+    }
+    .dropdown-menu.active { display: block; }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 10px; padding: 12px 15px;
+      color: var(--text-main); text-decoration: none; font-size: 14px;
+      border-bottom: 1px solid var(--border); transition: 0.2s;
+    }
+    .dropdown-item:last-child { border-bottom: none; }
+    .dropdown-item:hover { background: var(--bg-hover); color: var(--primary); }
+    .dropdown-item i { width: 20px; text-align: center; }
+
+    /* Main Content */
+    .container { padding: 20px; }
+
+    /* Stats Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 25px; }
+    .stat-card {
+      background: var(--bg-card); padding: 15px; border-radius: 12px;
+      border: 1px solid var(--border); position: relative; overflow: hidden;
+    }
+    .stat-card h3 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .stat-card h2 { font-size: 24px; font-weight: 700; }
+    .stat-card i {
+      position: absolute; right: 15px; bottom: 15px;
+      font-size: 30px; color: rgba(255,255,255,0.05); z-index: 0;
+    }
+
+    /* Data Table */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .section-header h2 { font-size: 16px; color: var(--text-main); }
+    .btn-add {
+      background: var(--primary); color: #000; border: none; padding: 8px 15px;
+      border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px;
+    }
+
+    .table-container { overflow-x: auto; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 12px 15px; font-size: 13px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--text-muted); font-weight: 500; background: rgba(0,0,0,0.2); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg-hover); }
+    
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+    .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+    /* Modal (For Adding Ads/Tasks later) */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: var(--bg-card); width: 90%; max-width: 400px; padding: 20px;
+      border-radius: 12px; border: 1px solid var(--border);
+    }
+    .modal-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+    .modal-header h3 { color: var(--primary); }
+    .close-btn { background: none; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px; background: var(--bg-main); border: 1px solid var(--border);
+      color: var(--text-main); border-radius: 6px; font-family: inherit;
+    }
+    .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: #000; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+
   </style>
 </head>
 <body>
 
-  <div class="header">
+  <!-- Header -->
+  <header class="admin-header">
     <h1><i class="fa-solid fa-shield-halved"></i> Admin Panel</h1>
-    <span id="admin-id-badge">Auth...</span>
-  </div>
-
-  <!-- Main Dashboard -->
-  <div id="admin-content" style="display: none;">
+    <button class="menu-btn" onclick="toggleMenu()"><i class="fa-solid fa-ellipsis-vertical"></i></button>
     
-    <!-- Stats -->
+    <!-- 3-Dot Dropdown Menu -->
+    <div class="dropdown-menu" id="dropdownMenu">
+      <a href="#" class="dropdown-item" onclick="switchTab('users')"><i class="fa-solid fa-users"></i> User Management</a>
+      <a href="#" class="dropdown-item" onclick="switchTab('tasks')"><i class="fa-solid fa-list-check"></i> Manage Tasks</a>
+      <a href="#" class="dropdown-item" onclick="switchTab('ads')"><i class="fa-solid fa-play"></i> Manage Ads</a>
+      <a href="#" class="dropdown-item" onclick="switchTab('withdraw')"><i class="fa-solid fa-wallet"></i> Withdrawals</a>
+      <a href="#" class="dropdown-item" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i> App Settings</a>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <!-- Dashboard Stats (Users, Balance, Tasks, Referrals) -->
     <div class="stats-grid">
       <div class="stat-card">
         <h3>Total Users</h3>
-        <p id="total-users">0</p>
+        <h2 id="total-users">0</h2>
+        <i class="fa-solid fa-users"></i>
       </div>
       <div class="stat-card">
-        <h3>Total Balance</h3>
-        <p id="total-balance">৳ 0</p>
+        <h3>Active Users</h3>
+        <h2 id="active-users">0</h2>
+        <i class="fa-solid fa-user-check"></i>
+      </div>
+      <div class="stat-card">
+        <h3>Total Referrals</h3>
+        <h2 id="total-refs">0</h2>
+        <i class="fa-solid fa-link"></i>
+      </div>
+      <div class="stat-card">
+        <h3>Total Tasks Done</h3>
+        <h2 id="total-tasks">0</h2>
+        <i class="fa-solid fa-check-double"></i>
       </div>
     </div>
 
-    <!-- User List -->
-    <h2 class="section-title">Recent Users</h2>
-    <div class="user-list" id="users-container">
-      <div class="loading">Loading users...</div>
+    <!-- Tab: Users Management (A to Z View) -->
+    <div id="tab-users" class="tab-content">
+      <div class="section-header">
+        <h2>User Database</h2>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Telegram ID</th>
+              <th>Balance</th>
+              <th>Referrals</th>
+              <th>Tasks Done</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="user-table-body">
+            <!-- ডাটা জাভাস্ক্রিপ্ট দিয়ে আসবে -->
+            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading users...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Manage Ads (Hidden by default) -->
+    <div id="tab-ads" class="tab-content" style="display: none;">
+      <div class="section-header">
+        <h2>Manage Ads</h2>
+        <button class="btn-add" onclick="openModal('ad')"><i class="fa-solid fa-plus"></i> Add New Ad</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>URL</th>
+              <th>Reward</th>
+              <th>Duration</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="ads-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No ads found. Click 'Add New Ad' to create.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Manage Tasks (Hidden by default) -->
+    <div id="tab-tasks" class="tab-content" style="display: none;">
+      <div class="section-header">
+        <h2>Manage Tasks</h2>
+        <button class="btn-add" onclick="openModal('task')"><i class="fa-solid fa-plus"></i> Add New Task</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Task Title</th>
+              <th>URL</th>
+              <th>Reward</th>
+              <th>Proof Required?</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-table-body">
+            <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No tasks found.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
 
-  <!-- Unauthorized Message -->
-  <div id="unauthorized" style="display: none; text-align: center; margin-top: 50px;">
-    <i class="fa-solid fa-lock" style="font-size: 50px; color: var(--danger); margin-bottom: 20px;"></i>
-    <h2>Access Denied</h2>
-    <p style="color: var(--muted); margin-top: 10px;">This panel is only for the App Owner.</p>
+  <!-- Modal for Adding Ad -->
+  <div class="modal" id="modal-ad">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add New Ad</h3>
+        <button class="close-btn" onclick="closeModal('ad')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>Ad Title</label>
+        <input type="text" placeholder="e.g. Daily Bonus Ad">
+      </div>
+      <div class="form-group">
+        <label>Ad Link (URL)</label>
+        <input type="url" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>Reward (৳)</label>
+        <input type="number" placeholder="0.50">
+      </div>
+      <div class="form-group">
+        <label>Duration (Seconds)</label>
+        <input type="number" placeholder="15">
+      </div>
+      <button class="btn-submit">Save Ad</button>
+    </div>
   </div>
 
-  <!-- Bottom Nav -->
-  <nav class="bottom-nav">
-    <a href="#" class="nav-item active"><i class="fa-solid fa-users"></i><span>Users</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-wallet"></i><span>Withdraws</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-play"></i><span>Ads</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-list"></i><span>Tasks</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
-  </nav>
+  <!-- Modal for Adding Task -->
+  <div class="modal" id="modal-task">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add New Task</h3>
+        <button class="close-btn" onclick="closeModal('task')">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>Task Title</label>
+        <input type="text" placeholder="e.g. Subscribe to Telegram Channel">
+      </div>
+      <div class="form-group">
+        <label>Task Link (URL)</label>
+        <input type="url" placeholder="https://t.me/yourchannel">
+      </div>
+      <div class="form-group">
+        <label>Reward (৳)</label>
+        <input type="number" placeholder="2.00">
+      </div>
+      <div class="form-group">
+        <label>Require Screenshot Proof?</label>
+        <select>
+          <option value="no">No (Auto Verify)</option>
+          <option value="yes">Yes (Manual Admin Verify)</option>
+        </select>
+      </div>
+      <button class="btn-submit">Save Task</button>
+    </div>
+  </div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    const ADMIN_TELEGRAM_ID = "YOUR_ADMIN_ID_HERE"; // <-- এখানে আপনার আসল আইডি বসাবেন
-    // ⚠️ নোট: আসল সিকিউরিটির জন্য আইডি সার্ভারে ভেরিফাই হবে, এটা শুধু UI এর জন্য।
-
-    const adminBadge = document.getElementById('admin-id-badge');
-    const content = document.getElementById('admin-content');
-    const unauthorized = document.getElementById('unauthorized');
-
-    async function initAdmin() {
-      if (!tg.initData) {
-        unauthorized.style.display = 'block';
-        unauthorized.querySelector('p').innerText = "Please open inside Telegram.";
-        return;
-      }
-
-      // Verify Admin via Backend API (আমরা পরের ধাপে ব্যাকএন্ড API বানাবো)
-      try {
-        // এখানে একটি API কল হবে: /api/admin/verify
-        // আপাতত UI দেখানোর জন্য আমরা শুধু userId চেক করছি (সার্ভার সাইড চেক Phase 6 এ হবে)
-        const urlParams = new URLSearchParams(tg.initData);
-        const userStr = urlParams.get('user');
-        const user = JSON.parse(userStr);
-
-        adminBadge.innerText = `ID: ${user.id}`;
-        
-        // UI দেখানো হচ্ছে (সার্ভার সাইড সিকিউরিটি পরের ধাপে)
-        content.style.display = 'block';
-        loadUsers(tg.initData);
-
-      } catch (error) {
-        console.error(error);
-        unauthorized.style.display = 'block';
-      }
+    // 3-Dot Menu Toggle
+    function toggleMenu() {
+      document.getElementById('dropdownMenu').classList.toggle('active');
     }
 
-    async function loadUsers(initData) {
-      try {
-        // পরের ধাপে আমরা /api/admin/users বানাবো
-        // আপাতত ডামি ডাটা দেখাচ্ছি
-        const container = document.getElementById('users-container');
-        container.innerHTML = `
-          <div class="user-card">
-            <div class="user-info">
-              <h4>Test User 1</h4>
-              <p>ID: 12345678</p>
-            </div>
-            <div class="user-balance">
-              <p>৳ 0</p>
-            </div>
-          </div>
-          <div class="user-card">
-            <div class="user-info">
-              <h4>Test User 2</h4>
-              <p>ID: 87654321</p>
-            </div>
-            <div class="user-balance">
-              <p>৳ 0</p>
-            </div>
-          </div>
-        `;
-        document.getElementById('total-users').innerText = "2";
-      } catch (error) {
-        console.error(error);
-      }
+    // Tab Switching Logic
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+      document.getElementById('tab-' + tabName).style.display = 'block';
+      document.getElementById('dropdownMenu').classList.remove('active');
+      
+      // Update Title based on tab
+      const titles = { users: 'User Database', tasks: 'Manage Tasks', ads: 'Manage Ads', withdraw: 'Withdrawals', settings: 'Settings' };
+      document.querySelector('.admin-header h1').innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${titles[tabName] || 'Admin Panel'}`;
     }
 
-    initAdmin();
+    // Modal Logic
+    function openModal(type) {
+      document.getElementById('modal-' + type).style.display = 'flex';
+    }
+    function closeModal(type) {
+      document.getElementById('modal-' + type).style.display = 'none';
+    }
+
+    // Dummy Data Loader (পরে আমরা Backend API থেকে ডাটা আনবো)
+    function loadDummyData() {
+      document.getElementById('total-users').innerText = "12";
+      document.getElementById('active-users').innerText = "5";
+      document.getElementById('total-refs').innerText = "34";
+      document.getElementById('total-tasks').innerText = "156";
+
+      const userTbody = document.getElementById('user-table-body');
+      userTbody.innerHTML = `
+        <tr>
+          <td>Rahim (Admin)</td>
+          <td>5123456789</td>
+          <td>৳ 0.00</td>
+          <td>5</td>
+          <td>12</td>
+          <td><span class="badge badge-success">Active</span></td>
+        </tr>
+        <tr>
+          <td>Karim</td>
+          <td>9876543210</td>
+          <td>৳ 1.50</td>
+          <td>0</td>
+          <td>3</td>
+          <td><span class="badge badge-success">Active</span></td>
+        </tr>
+        <tr>
+          <td>Fake User</td>
+          <td>1112223334</td>
+          <td>৳ 0.00</td>
+          <td>0</td>
+          <td>0</td>
+          <td><span class="badge badge-danger">Banned</span></td>
+        </tr>
+      `;
+    }
+
+    // Initialize
+    loadDummyData();
+    
+    // Close menu when clicking outside
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('dropdownMenu');
+      const btn = document.querySelector('.menu-btn');
+      if (!menu.contains(event.target) && !btn.contains(event.target)) {
+        menu.classList.remove('active');
+      }
+    });
   </script>
 </body>
 </html>
