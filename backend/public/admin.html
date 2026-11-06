@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Watch & Earn</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg: #0f111a;
+      --card: #1a1d2d;
+      --primary: #ff6b00;
+      --text: #ffffff;
+      --muted: #8b92b4;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 15px; padding-bottom: 80px; }
+    
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #2a2d3d; }
+    .header h1 { font-size: 20px; color: var(--primary); }
+    .header span { font-size: 12px; background: var(--danger); color: white; padding: 3px 8px; border-radius: 10px; }
+
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stat-card { background: var(--card); padding: 15px; border-radius: 10px; text-align: center; }
+    .stat-card h3 { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .stat-card p { font-size: 20px; font-weight: bold; }
+
+    .section-title { font-size: 16px; margin-bottom: 10px; font-weight: bold; color: #fff; border-left: 3px solid var(--primary); padding-left: 8px; }
+
+    .user-list { display: flex; flex-direction: column; gap: 10px; }
+    .user-card { background: var(--card); padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .user-info h4 { font-size: 15px; margin-bottom: 3px; }
+    .user-info p { font-size: 12px; color: var(--muted); }
+    .user-balance { text-align: right; }
+    .user-balance p { font-size: 14px; font-weight: bold; color: var(--success); }
+    
+    .btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    .btn-danger { background: var(--danger); }
+
+    .loading { text-align: center; color: var(--muted); padding: 20px; }
+    
+    /* Bottom Navigation for Admin */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card);
+      display: flex; justify-content: space-around; padding: 12px 0 20px;
+      border-top: 1px solid #2a2d3d; z-index: 100;
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--muted); gap: 5px; font-size: 10px; }
+    .nav-item.active { color: var(--primary); }
+    .nav-item i { font-size: 18px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><i class="fa-solid fa-shield-halved"></i> Admin Panel</h1>
+    <span id="admin-id-badge">Auth...</span>
+  </div>
+
+  <!-- Main Dashboard -->
+  <div id="admin-content" style="display: none;">
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Users</h3>
+        <p id="total-users">0</p>
+      </div>
+      <div class="stat-card">
+        <h3>Total Balance</h3>
+        <p id="total-balance">৳ 0</p>
+      </div>
+    </div>
+
+    <!-- User List -->
+    <h2 class="section-title">Recent Users</h2>
+    <div class="user-list" id="users-container">
+      <div class="loading">Loading users...</div>
+    </div>
+
+  </div>
+
+  <!-- Unauthorized Message -->
+  <div id="unauthorized" style="display: none; text-align: center; margin-top: 50px;">
+    <i class="fa-solid fa-lock" style="font-size: 50px; color: var(--danger); margin-bottom: 20px;"></i>
+    <h2>Access Denied</h2>
+    <p style="color: var(--muted); margin-top: 10px;">This panel is only for the App Owner.</p>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav">
+    <a href="#" class="nav-item active"><i class="fa-solid fa-users"></i><span>Users</span></a>
+    <a href="#" class="nav-item"><i class="fa-solid fa-wallet"></i><span>Withdraws</span></a>
+    <a href="#" class="nav-item"><i class="fa-solid fa-play"></i><span>Ads</span></a>
+    <a href="#" class="nav-item"><i class="fa-solid fa-list"></i><span>Tasks</span></a>
+    <a href="#" class="nav-item"><i class="fa-solid fa-gear"></i><span>Settings</span></a>
+  </nav>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const ADMIN_TELEGRAM_ID = "YOUR_ADMIN_ID_HERE"; // <-- এখানে আপনার আসল আইডি বসাবেন
+    // ⚠️ নোট: আসল সিকিউরিটির জন্য আইডি সার্ভারে ভেরিফাই হবে, এটা শুধু UI এর জন্য।
+
+    const adminBadge = document.getElementById('admin-id-badge');
+    const content = document.getElementById('admin-content');
+    const unauthorized = document.getElementById('unauthorized');
+
+    async function initAdmin() {
+      if (!tg.initData) {
+        unauthorized.style.display = 'block';
+        unauthorized.querySelector('p').innerText = "Please open inside Telegram.";
+        return;
+      }
+
+      // Verify Admin via Backend API (আমরা পরের ধাপে ব্যাকএন্ড API বানাবো)
+      try {
+        // এখানে একটি API কল হবে: /api/admin/verify
+        // আপাতত UI দেখানোর জন্য আমরা শুধু userId চেক করছি (সার্ভার সাইড চেক Phase 6 এ হবে)
+        const urlParams = new URLSearchParams(tg.initData);
+        const userStr = urlParams.get('user');
+        const user = JSON.parse(userStr);
+
+        adminBadge.innerText = `ID: ${user.id}`;
+        
+        // UI দেখানো হচ্ছে (সার্ভার সাইড সিকিউরিটি পরের ধাপে)
+        content.style.display = 'block';
+        loadUsers(tg.initData);
+
+      } catch (error) {
+        console.error(error);
+        unauthorized.style.display = 'block';
+      }
+    }
+
+    async function loadUsers(initData) {
+      try {
+        // পরের ধাপে আমরা /api/admin/users বানাবো
+        // আপাতত ডামি ডাটা দেখাচ্ছি
+        const container = document.getElementById('users-container');
+        container.innerHTML = `
+          <div class="user-card">
+            <div class="user-info">
+              <h4>Test User 1</h4>
+              <p>ID: 12345678</p>
+            </div>
+            <div class="user-balance">
+              <p>৳ 0</p>
+            </div>
+          </div>
+          <div class="user-card">
+            <div class="user-info">
+              <h4>Test User 2</h4>
+              <p>ID: 87654321</p>
+            </div>
+            <div class="user-balance">
+              <p>৳ 0</p>
+            </div>
+          </div>
+        `;
+        document.getElementById('total-users').innerText = "2";
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    initAdmin();
+  </script>
+</body>
+</html>
