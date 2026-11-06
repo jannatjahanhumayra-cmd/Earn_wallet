@@ -49,7 +49,6 @@ async function telegramAuth(req, res, next) {
   }
 }
 
-// ===== ADMIN SECURITY MIDDLEWARE =====
 async function adminAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization || '';
@@ -57,7 +56,6 @@ async function adminAuth(req, res, next) {
     if (authType !== 'tma' || !initData) return res.status(401).json({ error: 'Missing Auth header' });
     const user = verifyInitData(initData);
     
-    // চেক করা হচ্ছে এটি অ্যাডমিন কি না
     if (!user || user.id.toString() !== process.env.ADMIN_TELEGRAM_ID) {
       return res.status(403).json({ error: 'Access Denied. You are not the Admin.' });
     }
@@ -94,27 +92,80 @@ app.post('/api/auth', telegramAuth, async (req, res) => {
   }
 });
 
-// ===== ADMIN API (Real Data) =====
+// ===== ADMIN API =====
+// 1. Get Users
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const db = getDb();
     const usersSnapshot = await db.collection('users').get();
     const users = [];
-    usersSnapshot.forEach(doc => {
-      users.push(doc.data());
-    });
+    usersSnapshot.forEach(doc => users.push(doc.data()));
     res.json({ success: true, data: users });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// 2. Ban/Unban User
 app.post('/api/admin/ban', adminAuth, async (req, res) => {
   try {
     const { telegramId, status } = req.body;
-    const db = getDb();
-    await db.collection('users').doc(telegramId).update({ status: status });
+    await getDb().collection('users').doc(telegramId).update({ status });
     res.json({ success: true, message: `User status updated to ${status}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 3. Create Ad
+app.post('/api/admin/ads', adminAuth, async (req, res) => {
+  try {
+    const { title, url, reward, duration } = req.body;
+    const adRef = getDb().collection('advertisements').doc();
+    await adRef.set({
+      id: adRef.id, title, url, reward: Number(reward), duration: Number(duration),
+      status: 'active', createdAt: new Date().toISOString()
+    });
+    res.json({ success: true, message: 'Ad created successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. Get Ads
+app.get('/api/admin/ads', adminAuth, async (req, res) => {
+  try {
+    const snapshot = await getDb().collection('advertisements').get();
+    const ads = [];
+    snapshot.forEach(doc => ads.push(doc.data()));
+    res.json({ success: true, data: ads });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5. Create Task
+app.post('/api/admin/tasks', adminAuth, async (req, res) => {
+  try {
+    const { title, url, reward, requiresProof } = req.body;
+    const taskRef = getDb().collection('tasks').doc();
+    await taskRef.set({
+      id: taskRef.id, title, url, reward: Number(reward), requiresProof,
+      status: 'active', createdAt: new Date().toISOString()
+    });
+    res.json({ success: true, message: 'Task created successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 6. Get Tasks
+app.get('/api/admin/tasks', adminAuth, async (req, res) => {
+  try {
+    const snapshot = await getDb().collection('tasks').get();
+    const tasks = [];
+    snapshot.forEach(doc => tasks.push(doc.data()));
+    res.json({ success: true, data: tasks });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -132,6 +183,4 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
