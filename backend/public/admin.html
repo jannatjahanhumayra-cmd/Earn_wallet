@@ -127,12 +127,26 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
     
-    const urlParams = new URLSearchParams(window.location.search);
-    const initData = tg.initData || urlParams.get('initData');
+    // টেলিগ্রাম থেকে সরাসরি ডাটা নেওয়া
+    const initData = tg.initData;
+
+    // ডাটা না পেলে এরর দেখানো
+    if (!initData) {
+        document.body.innerHTML = `
+          <div style="padding: 30px; text-align: center; color: white; font-family: sans-serif;">
+            <h2 style="color: #ef4444;">⚠️ Access Error</h2>
+            <p>Could not get Telegram Data (initData).</p>
+            <p>Please close this and open from your Telegram Bot's Menu Button.</p>
+          </div>
+        `;
+        throw new Error("No initData");
+    }
+
     const authHeader = { 'Authorization': 'tma ' + initData, 'Content-Type': 'application/json' };
 
     function showLoader() { document.getElementById('loader').style.display = 'flex'; }
     function hideLoader() { document.getElementById('loader').style.display = 'none'; }
+    
     function switchTab(tab) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -193,7 +207,7 @@
           `;
         });
       } else {
-        alert(result.error); // Error details
+        alert(result.error);
       }
       hideLoader();
     }
@@ -334,8 +348,8 @@
     }
 
     // Init
-    if(!initData) alert("Warning: initData not found. Please open via Telegram.");
-    else { loadUsers(); loadStats(); }
+    loadUsers();
+    loadStats();
 
   </script>
 </body>
