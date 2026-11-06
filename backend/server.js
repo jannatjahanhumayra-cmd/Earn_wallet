@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { initializeFirebase, getDb } = require('./config/firebase');
+const { initializeFirebase } = require('./config/firebase');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -25,25 +25,6 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// ===== TEST ENDPOINT: Firestore Write =====
-app.get('/test-firestore', async (req, res) => {
-  try {
-    const db = getDb();
-    const testRef = db.collection('test').doc('connection');
-    
-    await testRef.set({
-      status: 'Success',
-      message: 'Firestore is connected perfectly!',
-      timestamp: new Date().toISOString()
-    });
-
-    res.json({ success: true, message: 'Data written to Firestore successfully!' });
-  } catch (error) {
-    console.error('Firestore Test Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
 });
 
 // Serve static frontend files
