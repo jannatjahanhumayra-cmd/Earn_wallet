@@ -172,7 +172,7 @@ async function telegramAuth(req, res, next) {
 }
 
 async function adminAuth(req, res, next) {
-  const adminUser = verifyInitData(readInitData(req), ADMIN_BOT_TOKEN);
+  const adminUser = verifyInitData(readInitData(req), BOT_TOKEN);
 
   if (!adminUser?.id) {
     return res.status(401).json({
