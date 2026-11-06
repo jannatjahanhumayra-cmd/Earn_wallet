@@ -6,27 +6,35 @@
   <title>Watch & Earn</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- CSS ফাইলের লিংক -->
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
+  <!-- Top Header -->
   <header class="app-header">
     <div class="user-info">
-      <img id="user-avatar" src="https://ui-avatars.com/api/?name=User&background=ff6600&color=fff" alt="Profile">
+      <img id="user-avatar" src="https://ui-avatars.com/api/?name=User&background=ff6b00&color=fff" alt="Profile">
       <div>
         <p class="greeting">Welcome back,</p>
         <h2 id="user-name">Loading...</h2>
       </div>
     </div>
     <div class="settings-icon">
-      <i class="fa-solid fa-gear"></i>
+      <i class="fa-solid fa-bell"></i>
     </div>
   </header>
 
+  <!-- Main Dashboard Content -->
   <main class="dashboard">
+    
+    <!-- Top Ad Placement -->
+    <div class="ad-banner">
+      <span>Advertisement Area</span>
+    </div>
+
+    <!-- Balance Card (Clean & Small Title) -->
     <div class="balance-card">
-      <p>Total Balance</p>
+      <p class="balance-title">Total Balance</p>
       <h1 id="balance-amount">৳ 0.00</h1>
       <div class="balance-stats">
         <div>
@@ -40,6 +48,7 @@
       </div>
     </div>
 
+    <!-- Quick Stats (User, Referral, Task, Withdrawn) -->
     <div class="stats-grid">
       <div class="stat-box">
         <i class="fa-solid fa-users" style="color: #3b82f6;"></i>
@@ -49,12 +58,12 @@
       <div class="stat-box">
         <i class="fa-solid fa-clipboard-check" style="color: #10b981;"></i>
         <h3 id="stat-tasks">0</h3>
-        <p>Completed</p>
+        <p>Completed Tasks</p>
       </div>
       <div class="stat-box">
         <i class="fa-solid fa-clock" style="color: #f59e0b;"></i>
         <h3 id="stat-pending">0</h3>
-        <p>Pending</p>
+        <p>Pending Tasks</p>
       </div>
       <div class="stat-box">
         <i class="fa-solid fa-wallet" style="color: #ef4444;"></i>
@@ -63,42 +72,108 @@
       </div>
     </div>
 
-    <div class="ad-banner">
-      <p>Banner Ad Placement (Top)</p>
-    </div>
-
+    <!-- Earn More Section -->
     <div class="section-title">
-      <h3>Earn More</h3>
-      <a href="#">See All</a>
+      <h3>Earn Money</h3>
     </div>
     
+    <!-- New Action Cards (Including Watch Ads, Withdraw, Referral) -->
     <div class="action-cards">
       <div class="action-card">
-        <div class="icon-bg" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
+        <div class="icon-bg" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
           <i class="fa-solid fa-play"></i>
         </div>
         <h4>Watch Ads</h4>
         <p>Earn ৳ 0.50 per ad</p>
       </div>
+      
       <div class="action-card">
-        <div class="icon-bg" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+        <div class="icon-bg" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
           <i class="fa-solid fa-list-check"></i>
         </div>
         <h4>Daily Tasks</h4>
         <p>Earn up to ৳ 10.00</p>
       </div>
+
+      <div class="action-card">
+        <div class="icon-bg" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+          <i class="fa-solid fa-user-group"></i>
+        </div>
+        <h4>Refer & Earn</h4>
+        <p>Invite friends, get bonus</p>
+      </div>
+
+      <div class="action-card">
+        <div class="icon-bg" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+          <i class="fa-solid fa-money-bill-transfer"></i>
+        </div>
+        <h4>Withdraw</h4>
+        <p>Cash out to bKash/Nagad</p>
+      </div>
     </div>
+
+    <!-- Middle Ad Placement -->
+    <div class="ad-banner" style="margin-top: 25px;">
+      <span>Advertisement Area</span>
+    </div>
+
+    <!-- Support & Community Section -->
+    <div class="section-title">
+      <h3>Support & Community</h3>
+    </div>
+    
+    <div class="support-links">
+      <a href="https://t.me/YourTelegramChannel" target="_blank" class="support-card">
+        <div class="support-icon" style="background: #229ED9;">
+          <i class="fa-brands fa-telegram"></i>
+        </div>
+        <div>
+          <h4>Join Telegram</h4>
+          <p>Get updates & news</p>
+        </div>
+      </a>
+
+      <a href="#" target="_blank" class="support-card">
+        <div class="support-icon" style="background: #ff6b00;">
+          <i class="fa-solid fa-headset"></i>
+        </div>
+        <div>
+          <h4>Support</h4>
+          <p>Contact us for help</p>
+        </div>
+      </a>
+    </div>
+
   </main>
 
+  <!-- Bottom Navigation (More Buttons Added) -->
   <nav class="bottom-nav">
-    <a href="#" class="nav-item active"><i class="fa-solid fa-house"></i><span>Home</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-play-circle"></i><span>Earn</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-list-check"></i><span>Tasks</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-user-group"></i><span>Referral</span></a>
-    <a href="#" class="nav-item"><i class="fa-solid fa-user"></i><span>Profile</span></a>
+    <a href="#" class="nav-item active">
+      <i class="fa-solid fa-house"></i>
+      <span>Home</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-play-circle"></i>
+      <span>Ads</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-list-check"></i>
+      <span>Tasks</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-user-group"></i>
+      <span>Referral</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Withdraw</span>
+    </a>
+    <a href="#" class="nav-item">
+      <i class="fa-solid fa-user"></i>
+      <span>Profile</span>
+    </a>
   </nav>
 
-  <!-- JS ফাইলের লিংক -->
   <script src="/app.js"></script>
 </body>
 </html>
