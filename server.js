@@ -65,14 +65,19 @@ initializeFirebase();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
+// USER BOT TOKEN
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+// ADMIN BOT TOKEN
 const ADMIN_BOT_TOKEN = process.env.ADMIN_BOT_TOKEN;
+
 const ADMIN_ID = String(process.env.ADMIN_TELEGRAM_ID || '');
 const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW || 100);
 const REFERRAL_BONUS = Number(process.env.REFERRAL_BONUS || 0);
 
 const REQUIRED_REFERRAL_ADS = 20;
 const REQUIRED_SUCCESSFUL_REFERRALS = 10;
+
 const TELEGRAM_BOT_USERNAME = String(
   process.env.TELEGRAM_BOT_USERNAME || 'EarnWalle_tBot'
 ).replace(/^@/, '');
@@ -150,6 +155,7 @@ function readInitData(req) {
   return h.startsWith('tma ') ? h.slice(4) : '';
 }
 
+// USER BOT AUTHENTICATION
 async function telegramAuth(req, res, next) {
   const user = verifyInitData(readInitData(req), BOT_TOKEN);
 
@@ -171,8 +177,13 @@ async function telegramAuth(req, res, next) {
   next();
 }
 
+// ADMIN BOT AUTHENTICATION
+// IMPORTANT: Admin authentication uses ADMIN_BOT_TOKEN.
 async function adminAuth(req, res, next) {
-  const adminUser = verifyInitData(readInitData(req), BOT_TOKEN);
+  const adminUser = verifyInitData(
+    readInitData(req),
+    ADMIN_BOT_TOKEN
+  );
 
   if (!adminUser?.id) {
     return res.status(401).json({
@@ -354,7 +365,7 @@ async function telegramApi(method, payload = {}) {
   return result.result;
 }
 
-// Automatically connect Telegram /start to this Render server.
+// Automatically connect USER Telegram /start to this Render server.
 async function configureTelegramWebhook() {
   if (!BOT_TOKEN || !WEBHOOK_PATH) {
     console.warn('Telegram webhook not configured: TELEGRAM_BOT_TOKEN is missing.');
@@ -397,7 +408,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// TELEGRAM BOT /START WEBHOOK
+// TELEGRAM USER BOT /START WEBHOOK
 if (WEBHOOK_PATH) {
   app.post(WEBHOOK_PATH, async (req, res) => {
     if (req.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
@@ -675,7 +686,6 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
         throw new Error('TOO_EARLY');
       }
 
-      // Read referral records before transaction writes.
       let referralSnap = null;
       let inviterSnap = null;
       let referralRef = null;
@@ -725,7 +735,6 @@ app.post('/api/ads/complete', telegramAuth, async (req, res) => {
         completedAt: new Date().toISOString()
       });
 
-      // Each unique completed ad advances referral progress once.
       if (
         referralSnap?.exists &&
         referralSnap.data().status !== 'successful'
@@ -1024,7 +1033,6 @@ app.post('/api/withdraw', telegramAuth, async (req, res) => {
       });
     }
 
-    // Server-side referral check. Frontend locking is not trusted.
     const referralDocs = await db.collection('referrals')
       .where('referrerId', '==', uid)
       .get();
