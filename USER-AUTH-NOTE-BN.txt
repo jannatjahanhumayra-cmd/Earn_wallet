@@ -1,0 +1,5 @@
+তোমার দেওয়া telegramAuth.js ফাইলটি পরীক্ষা করা হয়েছে।
+এই User Mini App-এর server.js-এ Telegram initData verification ও telegramAuth middleware আগে থেকেই আছে।
+তাই একই middleware দ্বিতীয়বার যুক্ত করা হয়নি, যাতে authentication conflict না হয়।
+তোমার দেওয়া config/firebase.js ঠিক server.js-এর প্রয়োজনীয় config/firebase.js path-এ রাখা হয়েছে।
+Firebase Admin credentials আগের মতো Render-এর FIREBASE_CREDENTIALS Environment Variable থেকেই পড়বে।
