@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -21,16 +20,19 @@
     </header>
 
     <main id="view" class="view">
-      <div class="ad-slot top-ad">
-        <small>ADVERTISEMENT</small>
-        <div class="ad-placeholder">Adsterra Top Placement</div>
-      </div>
       <div class="skeleton"></div>
     </main>
 
-    <div class="bottom-ad" data-ad-slot="bottom">
+    <!-- BOTTOM BANNER AD: এখানে সরাসরি Adsterra Banner দেখানো হবে -->
+    <div class="bottom-ad" id="bottomBanner">
       <small>ADVERTISEMENT</small>
-      <div class="ad-placeholder">Advertisement</div>
+      <div class="direct-banner" data-direct-banner="bottom"></div>
+
+      <!-- BOTTOM DIRECT LINK AD: ক্লিক করলে Adsterra লিংক খুলবে -->
+      <button id="bottomAdLink" type="button"
+        style="width:100%;margin-top:7px;padding:11px;border:0;border-radius:10px;background:#ff9a32;color:#111827;font-weight:800;">
+        Visit Sponsored Advertisement
+      </button>
     </div>
 
     <nav class="bottom-nav" id="bottomNav">
@@ -76,6 +78,6 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="/app.js?v=4"></script>
+  <script src="/app.js?v=5"></script>
 </body>
 </html>
