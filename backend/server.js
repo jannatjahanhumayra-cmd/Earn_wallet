@@ -14,6 +14,7 @@ app.use(express.json());
 
 // ===== TELEGRAM VERIFY FUNCTION =====
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const ADMIN_ID = "7302992283"; // আপনার আসল অ্যাডমিন আইডি
 
 function verifyInitData(initData) {
   if (!initData) return null;
@@ -57,8 +58,10 @@ async function adminAuth(req, res, next) {
     if (!initData) return res.status(401).json({ error: 'Missing Auth header' });
 
     const user = verifyInitData(initData);
-    if (!user || user.id.toString() !== process.env.ADMIN_TELEGRAM_ID) {
-      return res.status(403).json({ error: 'Access Denied. You are not the Admin.' });
+    
+    // ডিরেক্ট আইডি চেক (Environment variable এর ঝামেলা এড়াতে)
+    if (!user || user.id.toString() !== ADMIN_ID) {
+      return res.status(403).json({ error: `Access Denied. Your ID: ${user?.id}, Required: ${ADMIN_ID}` });
     }
     req.adminUser = user;
     next();
@@ -92,8 +95,6 @@ app.post('/api/auth', telegramAuth, async (req, res) => {
 });
 
 // ===== ADMIN APIS =====
-
-// 1. Get Dashboard Stats
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
   try {
     const db = getDb();
@@ -110,7 +111,6 @@ app.get('/api/admin/stats', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-// 2. Get Users
 app.get('/api/admin/users', adminAuth, async (req, res) => {
   try {
     const snapshot = await getDb().collection('users').get();
@@ -119,7 +119,6 @@ app.get('/api/admin/users', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-// 3. Ban/Unban User
 app.post('/api/admin/ban', adminAuth, async (req, res) => {
   try {
     const { telegramId, status } = req.body;
@@ -128,7 +127,6 @@ app.post('/api/admin/ban', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-// 4. Ads Management
 app.get('/api/admin/ads', adminAuth, async (req, res) => {
   try {
     const snapshot = await getDb().collection('advertisements').get();
@@ -153,7 +151,6 @@ app.delete('/api/admin/ads/:id', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-// 5. Tasks Management
 app.get('/api/admin/tasks', adminAuth, async (req, res) => {
   try {
     const snapshot = await getDb().collection('tasks').get();
@@ -178,7 +175,6 @@ app.delete('/api/admin/tasks/:id', adminAuth, async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-// 6. Withdrawal Management
 app.get('/api/admin/withdrawals', adminAuth, async (req, res) => {
   try {
     const snapshot = await getDb().collection('withdrawals').orderBy('createdAt', 'desc').get();
@@ -189,9 +185,8 @@ app.get('/api/admin/withdrawals', adminAuth, async (req, res) => {
 
 app.post('/api/admin/withdrawals/:id', adminAuth, async (req, res) => {
   try {
-    const { status } = req.body; // 'approved' or 'rejected'
-    const wRef = getDb().collection('withdrawals').doc(req.params.id);
-    await wRef.update({ status, updatedAt: new Date().toISOString() });
+    const { status } = req.body;
+    await getDb().collection('withdrawals').doc(req.params.id).update({ status, updatedAt: new Date().toISOString() });
     res.json({ success: true, message: `Withdrawal ${status}` });
   } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 });
