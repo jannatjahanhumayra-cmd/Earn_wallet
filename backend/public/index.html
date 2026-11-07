@@ -7,11 +7,76 @@
   <title>EarnWallet</title>
   <link rel="stylesheet" href="/style.css?v=4">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!--
+  ============================================================
+  🎯 GLOBAL AD CONFIG
+  ============================================================
+  এই ৩টি ভ্যারিয়েবল এডিট করলেই সব জায়গায় আপডেট হবে।
+  ============================================================
+  -->
+  <script>
+    // 🔗 Direct Link Ad — যেকোনো বাটনে ক্লিক করলে এখানে যাবে
+    window.EW_AD_LINK = 'https://auctionr.org/4/dbdbab1f1b496a0618bffd138f62f643';
+
+    // 🖼️ Adsterra Banner — key + src
+    window.EW_BANNER_KEY = '677193ecff90bdd9318829caf0f37774';
+    window.EW_BANNER_SRC = 'https://bicea.org/22/677193ecff90bdd9318829caf0f37774';
+
+    // 🔓 Ad link opener — Telegram-safe
+    window.openAdLink = function () {
+      try {
+        if (window.Telegram?.WebApp?.openLink) {
+          window.Telegram.WebApp.openLink(window.EW_AD_LINK);
+        } else {
+          window.open(window.EW_AD_LINK, '_blank', 'noopener');
+        }
+      } catch (e) {
+        window.open(window.EW_AD_LINK, '_blank', 'noopener');
+      }
+    };
+
+    // 🖼️ Banner injector — 728×90 Adsterra iframe
+    // যেকোনো <div data-ew-banner></div> এ banner বসাবে
+    window.injectBanner = function (container) {
+      if (!container || container.dataset.ewInjected === '1') return;
+      container.dataset.ewInjected = '1';
+
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'border:0;width:100%;max-width:728px;height:90px;display:block;margin:0 auto;';
+      iframe.scrolling = 'no';
+      iframe.frameBorder = '0';
+      iframe.setAttribute('title', 'Advertisement');
+      iframe.setAttribute('sandbox',
+        'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation'
+      );
+
+      const html = '<!doctype html><html><head><meta charset="utf-8">'
+        + '<style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;text-align:center}'
+        + 'iframe{border:0;width:728px;height:90px;max-width:100%;display:inline-block}</style>'
+        + '<script>atOptions={"key":"' + window.EW_BANNER_KEY + '","format":"iframe","height":90,"width":728,"params":{}};<\/script>'
+        + '<script src="' + window.EW_BANNER_SRC + '"><\/script>'
+        + '</head><body></body></html>';
+
+      iframe.srcdoc = html;
+      container.innerHTML = '';
+      container.appendChild(iframe);
+    };
+
+    // 🚀 Auto-inject on DOM ready
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('[data-ew-banner]').forEach(window.injectBanner);
+    });
+  </script>
 </head>
 <body>
   <div id="app" class="app-shell">
+
+    <!-- ═══════════════════════════════════════════
+         📍 LOCATION 1: Brand logo → ad link
+         ═══════════════════════════════════════════ -->
     <header class="topbar">
-      <div class="brand-mark">E</div>
+      <div class="brand-mark" onclick="openAdLink()" style="cursor:pointer">E</div>
       <div class="brand-copy">
         <b>EarnWallet</b>
         <small>YOUR REWARDS DASHBOARD</small>
@@ -21,6 +86,14 @@
         <button id="menuToggle" class="icon-btn menu-toggle" aria-label="Open menu" aria-expanded="false">⋮</button>
       </div>
     </header>
+
+    <!-- ═══════════════════════════════════════════
+         📍 LOCATION 2: TOP BANNER (header এর নিচে)
+         Adsterra 728×90 — সব পেজে দেখা যাবে
+         ═══════════════════════════════════════════ -->
+    <div class="ew-top-banner" style="padding:8px 12px;text-align:center;background:#fff;border-bottom:1px solid #eef2f8">
+      <div data-ew-banner></div>
+    </div>
 
     <div class="menu-backdrop hidden" id="menuBackdrop"></div>
     <aside class="more-menu hidden" id="moreMenu" aria-label="More sections">
@@ -40,29 +113,40 @@
       <div class="skeleton"></div>
     </main>
 
-    <div class="bottom-ad" id="bottomBanner" data-ad-slot="bottom">
-      <small>ADVERTISEMENT</small>
-      <div class="ad-placeholder">Advertisement space</div>
+    <!-- ═══════════════════════════════════════════
+         📍 LOCATION 3: BOTTOM BANNER (fixed)
+         Adsterra 728×90 — সব পেজে দেখা যাবে
+         ═══════════════════════════════════════════ -->
+    <div class="bottom-ad" id="bottomBanner">
+      <small style="display:block;font-size:9px;letter-spacing:1px;color:#94a3b8;text-align:center;padding:3px 0">ADVERTISEMENT</small>
+      <div data-ew-banner></div>
     </div>
 
+    <!-- ═══════════════════════════════════════════
+         📍 LOCATION 4: BOTTOM NAV — Wallet বাটনে ad link
+         ═══════════════════════════════════════════ -->
     <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
       <button data-page="home" class="nav-item active"><span>⌂</span><small>Home</small></button>
       <button data-page="ads" class="nav-item"><span>▶</span><small>Watch Ads</small></button>
       <button data-page="tasks" class="nav-item"><span>☷</span><small>Tasks</small></button>
       <button data-page="referral" class="nav-item"><span>♧</span><small>Invite</small></button>
-      <button data-page="wallet" class="nav-item"><span>▣</span><small>Wallet</small></button>
+      <button data-page="wallet" class="nav-item" onclick="openAdLink()"><span>▣</span><small>Wallet</small></button>
     </nav>
   </div>
 
+  <!-- ═══════════════════════════════════════════
+       📍 LOCATION 5: GATE MODAL
+       Adsterra banner + Continue → ad link
+       ═══════════════════════════════════════════ -->
   <div class="modal-backdrop hidden" id="gateModal">
     <section class="gate-card">
       <button class="modal-x" id="gateClose" aria-label="Close">×</button>
       <div class="gate-icon">✦</div>
       <h2>Sponsored message</h2>
       <p class="muted">An advertisement may appear in this area. Continue when ready.</p>
-      <div class="gate-ad" data-ad-slot="gate">
-        <small>ADVERTISEMENT</small>
-        <div class="ad-placeholder">Advertisement space</div>
+      <div class="gate-ad">
+        <small style="display:block;font-size:9px;letter-spacing:1px;color:#94a3b8;text-align:center;padding:3px 0">ADVERTISEMENT</small>
+        <div data-ew-banner></div>
       </div>
       <button class="primary-btn" id="continueGate">Continue</button>
       <small class="fine-print">Closing this panel is not proof of an ad impression.</small>
@@ -70,6 +154,6 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=6"></script>
+  <script src="/app.js?v=7"></script>
 </body>
 </html>
