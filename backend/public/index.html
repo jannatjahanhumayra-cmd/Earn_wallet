@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7faff">
+  <title>EarnWallet</title>
+  <link rel="stylesheet" href="/style.css?v=4">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark">E</div>
+      <div class="brand-copy">
+        <b>EarnWallet</b>
+        <small>YOUR REWARDS DASHBOARD</small>
+      </div>
+      <div class="topbar-actions">
+        <button id="refreshBtn" class="icon-btn" aria-label="Refresh" title="Refresh">↻</button>
+        <button id="menuToggle" class="icon-btn menu-toggle" aria-label="Open menu" aria-expanded="false">⋮</button>
+      </div>
+    </header>
+
+    <div class="menu-backdrop hidden" id="menuBackdrop"></div>
+    <aside class="more-menu hidden" id="moreMenu" aria-label="More sections">
+      <div class="menu-heading">Explore EarnWallet</div>
+      <button class="menu-link" data-page="how"><span>ⓘ</span> How it works</button>
+      <button class="menu-link" data-page="notifications"><span>♢</span> Notifications</button>
+      <button class="menu-link" data-page="history"><span>↗</span> Transaction history</button>
+      <button class="menu-link" data-page="referral"><span>♧</span> Referral history</button>
+      <button class="menu-link" data-page="leaderboard"><span>♕</span> Leaderboard</button>
+      <button class="menu-link" data-page="daily"><span>✦</span> Daily bonus</button>
+      <button class="menu-link" data-page="support"><span>✉</span> Support</button>
+      <button class="menu-link" data-page="faq"><span>?</span> FAQ & Rules</button>
+      <button class="menu-link" data-page="profile"><span>◉</span> Profile</button>
+    </aside>
+
+    <main id="view" class="view">
+      <div class="skeleton"></div>
+    </main>
+
+    <div class="bottom-ad" id="bottomBanner" data-ad-slot="bottom">
+      <small>ADVERTISEMENT</small>
+      <div class="ad-placeholder">Advertisement space</div>
+    </div>
+
+    <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
+      <button data-page="home" class="nav-item active"><span>⌂</span><small>Home</small></button>
+      <button data-page="ads" class="nav-item"><span>▶</span><small>Watch Ads</small></button>
+      <button data-page="tasks" class="nav-item"><span>☷</span><small>Tasks</small></button>
+      <button data-page="referral" class="nav-item"><span>♧</span><small>Invite</small></button>
+      <button data-page="wallet" class="nav-item"><span>▣</span><small>Wallet</small></button>
+    </nav>
+  </div>
+
+  <div class="modal-backdrop hidden" id="gateModal">
+    <section class="gate-card">
+      <button class="modal-x" id="gateClose" aria-label="Close">×</button>
+      <div class="gate-icon">✦</div>
+      <h2>Sponsored message</h2>
+      <p class="muted">An advertisement may appear in this area. Continue when ready.</p>
+      <div class="gate-ad" data-ad-slot="gate">
+        <small>ADVERTISEMENT</small>
+        <div class="ad-placeholder">Advertisement space</div>
+      </div>
+      <button class="primary-btn" id="continueGate">Continue</button>
+      <small class="fine-print">Closing this panel is not proof of an ad impression.</small>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js?v=6"></script>
+</body>
+</html>
