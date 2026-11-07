@@ -1,0 +1,19 @@
+{
+  "name": "earnwalletbot-user-mini-app",
+  "version": "2.0.0",
+  "description": "EarnWalletBot Telegram Mini App backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "firebase-admin": "^12.7.0"
+  },
+  "engines": {
+    "node": ">=20 <25"
+  }
+}
