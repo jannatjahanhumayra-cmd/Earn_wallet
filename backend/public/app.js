@@ -23,51 +23,46 @@ let pendingAction = null;
 let adPlacements = {};
 let adPlacementsLoaded = false;
 
-/* Admin-managed banner placements: top, middle and bottom. */
+/* =====================================================
+   🎯 AD SYSTEM — hardcoded banner + direct link
+   ===================================================== */
+
+// Direct link opener (window.openAdLink index.html এ defined)
+function openAdLink() {
+  if (window.openAdLink) window.openAdLink();
+}
+
+// Banner injector (window.injectBanner index.html এ defined)
+function mountBanner(container) {
+  if (!container) return;
+  if (window.injectBanner) window.injectBanner(container);
+}
+
+// সব [data-ew-banner] inject
+function mountAllBanners(scope = document) {
+  scope.querySelectorAll('[data-ew-banner]').forEach(mountBanner);
+}
+
+/* =====================================================
+   BANNER MARKUP — page এর ভেতরে middle banner
+   ===================================================== */
 function bannerMarkup(position) {
   return `
-    <div class="direct-ad-box" data-ad-slot="${position}">
-      <small>ADVERTISEMENT</small>
-      <div class="ad-placeholder">Advertisement space</div>
+    <div class="direct-ad-box" style="margin:12px 0;padding:8px;background:#fff;border-radius:12px;border:1px solid #eef2f8;text-align:center">
+      <small style="display:block;font-size:9px;letter-spacing:1px;color:#94a3b8;margin-bottom:4px">ADVERTISEMENT</small>
+      <div data-ew-banner></div>
     </div>
   `;
 }
 
-function mountBannerAds(scope = document) {
-  hydrateAdSlots(scope);
-}
-
-/* Telegram Channel Button */
-function channelButton() {
-  return `
-    <button type="button" id="channelBtn" class="secondary-btn full"
-      style="margin-top:12px;">
-      ✈ Join EarnWallet Official Channel
-    </button>
-  `;
-}
-
-function connectChannelButton() {
-  const btn = document.getElementById('channelBtn');
-  if (!btn) return;
-
-  btn.onclick = () => {
-    if (tg?.openTelegramLink) {
-      tg.openTelegramLink(CHANNEL_URL);
-    } else {
-      window.open(CHANNEL_URL, '_blank', 'noopener');
-    }
-  };
-}
-
 /* =====================================================
-   ADMIN CONTROLLED GATE PLACEMENT
-   শুধু Gate Advertisement আগের মতো Admin Panel থেকে আসবে।
+   ADMIN GATE PLACEMENT — শুধু gate slot (ঐচ্ছিক)
+   Admin Panel থেকে gate ad configure করা থাকলে সেটাই দেখাবে।
+   না থাকলে hardcoded banner বসবে।
    ===================================================== */
 
 async function loadAdPlacements(force = false) {
   if (adPlacementsLoaded && !force) return adPlacements;
-
   try {
     adPlacements = await api('/api/ad-placements');
     adPlacementsLoaded = true;
@@ -76,27 +71,22 @@ async function loadAdPlacements(force = false) {
     adPlacements = {};
     adPlacementsLoaded = true;
   }
-
   return adPlacements;
 }
 
-function hydrateAdSlots(scope = document) {
-  scope.querySelectorAll('[data-ad-slot]').forEach(node => {
-    const slot = node.dataset.adSlot;
-    const config = adPlacements[slot];
-    const oldFrame = node.querySelector('iframe.ad-frame');
-    const oldPlaceholder = node.querySelector('.ad-placeholder');
+// Gate slot hydrate — Admin HTML থাকলে iframe, না থাকলে hardcoded banner
+function hydrateGateSlot() {
+  const node = gate.querySelector('.gate-ad');
+  if (!node) return;
 
-    if (oldFrame) oldFrame.remove();
+  // ইতিমধ্যে hardcoded banner থাকলে আবার inject করব না
+  if (node.querySelector('[data-ew-banner] iframe')) return;
 
-    if (!config || !config.html) {
-      if (oldPlaceholder) {
-        oldPlaceholder.textContent = 'Advertisement currently unavailable';
-        oldPlaceholder.style.display = 'grid';
-      }
-      node.dataset.loaded = 'no';
-      return;
-    }
+  const config = adPlacements['gate'];
+  if (config && config.html) {
+    // Admin Panel থেকে gate ad এসেছে — iframe দিয়ে render
+    const existing = node.querySelector('iframe.ad-frame');
+    if (existing) existing.remove();
 
     const small = node.querySelector('small');
     if (small) small.textContent = config.label || 'ADVERTISEMENT';
@@ -107,14 +97,48 @@ function hydrateAdSlots(scope = document) {
     frame.setAttribute('sandbox', 'allow-scripts allow-popups allow-forms');
     frame.setAttribute('loading', 'lazy');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.style.cssText = 'border:0;width:100%;max-width:728px;height:90px;display:block;margin:0 auto;';
     frame.srcdoc = config.html;
 
+    const oldPlaceholder = node.querySelector('.ad-placeholder');
     if (oldPlaceholder) oldPlaceholder.replaceWith(frame);
     else node.appendChild(frame);
-    node.dataset.loaded = 'yes';
-  });
+  } else {
+    // Admin Panel থেকে ad নেই — hardcoded banner
+    const placeholder = node.querySelector('.ad-placeholder');
+    if (placeholder) placeholder.remove();
+    if (!node.querySelector('[data-ew-banner]')) {
+      const wrap = document.createElement('div');
+      wrap.setAttribute('data-ew-banner', '');
+      node.appendChild(wrap);
+      mountBanner(wrap);
+    }
+  }
 }
 
+/* =====================================================
+   Channel button
+   ===================================================== */
+function channelButton() {
+  return `
+    <button type="button" id="channelBtn" class="secondary-btn full" style="margin-top:12px;">
+      ✈ Join EarnWallet Official Channel
+    </button>
+  `;
+}
+
+function connectChannelButton() {
+  const btn = document.getElementById('channelBtn');
+  if (!btn) return;
+  btn.onclick = () => {
+    if (tg?.openTelegramLink) tg.openTelegramLink(CHANNEL_URL);
+    else window.open(CHANNEL_URL, '_blank', 'noopener');
+  };
+}
+
+/* =====================================================
+   Toast + API helpers
+   ===================================================== */
 function toast(msg) {
   toastEl.textContent = msg;
   toastEl.classList.add('show');
@@ -130,40 +154,33 @@ async function api(url, options = {}) {
       ...(options.headers || {})
     }
   });
-
   const raw = await r.text();
   let j;
-
-  try {
-    j = JSON.parse(raw);
-  } catch {
+  try { j = JSON.parse(raw); }
+  catch {
     const hint = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110);
     throw new Error(
       `Server returned a non-JSON response (HTTP ${r.status})${hint ? `: ${hint}` : ''}. Check Render deployment and API route.`
     );
   }
-
   if (!r.ok || j.success === false) {
     throw new Error(j.error || `Request failed (HTTP ${r.status})`);
   }
-
   return j.data ?? j;
 }
 
 const money = n => `৳ ${Number(n || 0).toFixed(2)}`;
-
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[c]));
 
+/* =====================================================
+   Gate — Ad দেখানোর পর action চালানোর system
+   ===================================================== */
 async function gateThen(fn) {
   pendingAction = fn;
   await loadAdPlacements();
-  hydrateAdSlots(gate);
+  hydrateGateSlot();
   gate.classList.remove('hidden');
 }
 
@@ -174,13 +191,20 @@ function closeGate() {
   if (fn) fn();
 }
 
+// Gate close + continue → অ্যাড লিংক open + gate close
 document.getElementById('gateClose').onclick = closeGate;
-document.getElementById('continueGate').onclick = closeGate;
+document.getElementById('continueGate').onclick = () => {
+  openAdLink();
+  closeGate();
+};
 
 document.getElementById('refreshBtn').onclick = () => {
   gateThen(() => loadPage(page));
 };
 
+/* =====================================================
+   Menu
+   ===================================================== */
 const moreMenu = document.getElementById('moreMenu');
 const menuBackdrop = document.getElementById('menuBackdrop');
 const menuToggle = document.getElementById('menuToggle');
@@ -222,6 +246,9 @@ function shell(title, sub, content) {
     ${content}`;
 }
 
+/* =====================================================
+   Page loader
+   ===================================================== */
 async function loadPage(p) {
   page = p;
   setActive();
@@ -254,12 +281,11 @@ async function loadPage(p) {
     else if (p === 'daily') await emptyFeaturePage('Daily Bonus', 'A daily bonus claim and verification API is not present in the current backend. No bonus is credited by the interface.');
     else if (p === 'support') await supportPage();
 
-    await loadAdPlacements();
-    hydrateAdSlots(view);
-    mountBannerAds(view);
+    // সব hardcoded banner inject (top / middle / bottom)
+    mountAllBanners(view);
     connectChannelButton();
   } catch (e) {
-    view.innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="secondary-btn" onclick="loadPage(page)">Try again</button></div>`;
+    view.innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="secondary-btn" onclick="loadPage('${esc(page)}')">Try again</button></div>`;
   }
 }
 
@@ -268,7 +294,9 @@ async function refreshMe() {
   return me;
 }
 
-/* HOME PAGE */
+/* =====================================================
+   HOME
+   ===================================================== */
 async function home() {
   await refreshMe();
 
@@ -330,7 +358,9 @@ function feature(icon, title, sub, to) {
   </button>`;
 }
 
-/* WATCH ADS PAGE */
+/* =====================================================
+   WATCH ADS
+   ===================================================== */
 async function adsPage() {
   const ads = await api('/api/ads');
 
@@ -365,7 +395,6 @@ async function startAd(id) {
     });
 
     if (s.url) tg?.openLink(s.url);
-
     let remaining = Number(s.duration);
 
     view.innerHTML = shell(
@@ -379,23 +408,20 @@ async function startAd(id) {
 
     const timer = setInterval(async () => {
       remaining--;
-
       const el = document.getElementById('timer');
       if (el) el.textContent = `${Math.max(0, remaining)}s`;
 
       if (remaining <= 0) {
         clearInterval(timer);
-
         try {
           const done = await api('/api/ads/complete', {
             method: 'POST',
             body: JSON.stringify({ sessionId: s.sessionId })
           });
-
           toast(`Reward added: ${money(done.reward)}`);
           await refreshMe();
           await adsPage();
-          mountBannerAds(view);
+          mountAllBanners(view);
         } catch (e) {
           toast(e.message);
         }
@@ -406,7 +432,9 @@ async function startAd(id) {
   }
 }
 
-/* TASKS PAGE */
+/* =====================================================
+   TASKS
+   ===================================================== */
 async function tasksPage() {
   const tasks = await api('/api/tasks');
 
@@ -457,16 +485,17 @@ async function taskSubmit(id, url, proofRequired) {
       method: 'POST',
       body: JSON.stringify({ proof })
     });
-
     toast('Task submitted for review.');
     await tasksPage();
-    mountBannerAds(view);
+    mountAllBanners(view);
   } catch (e) {
     toast(e.message);
   }
 }
 
-/* REFERRAL PAGE */
+/* =====================================================
+   REFERRAL
+   ===================================================== */
 async function referralPage() {
   const d = await api('/api/referrals');
 
@@ -477,45 +506,29 @@ async function referralPage() {
   const required = Number(d.requiredSuccessfulReferrals || REQUIRED_REFERRALS);
 
   const referralRows = (d.referrals || []).map(r => {
-    const done = Math.min(
-      Number(r.completedAds || 0),
-      Number(r.requiredAds || 20)
-    );
-
+    const done = Math.min(Number(r.completedAds || 0), Number(r.requiredAds || 20));
     const need = Number(r.requiredAds || 20);
     const percent = Math.max(0, Math.min(100, done / need * 100));
     const successfulStatus = r.status === 'successful';
-
-    const fullName = [
-      r.firstName,
-      r.lastName
-    ].filter(Boolean).join(' ') || 'Telegram User';
+    const fullName = [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Telegram User';
 
     return `
       <div class="list-card" style="display:block">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
           <div>
             <b>${esc(fullName)}</b>
-            <p class="muted" style="margin:4px 0 0">
-              ${r.username ? '@' + esc(r.username) : 'Telegram user'}
-            </p>
+            <p class="muted" style="margin:4px 0 0">${r.username ? '@' + esc(r.username) : 'Telegram user'}</p>
           </div>
-          <span class="pill" style="${
-            successfulStatus ? 'background:#123d35;color:#79e5c3' : ''
-          }">
+          <span class="pill" style="${successfulStatus ? 'background:#123d35;color:#79e5c3' : ''}">
             ${successfulStatus ? 'Successful' : 'In Progress'}
           </span>
         </div>
-
         <div style="display:flex;justify-content:space-between;margin-top:13px;font-size:11px;color:#aab6d0">
           <span>Ads completed</span>
           <b>${done}/${need}</b>
         </div>
-
         <div style="height:7px;background:#293653;border-radius:20px;overflow:hidden;margin-top:7px">
-          <div style="height:100%;width:${percent}%;background:${
-            successfulStatus ? '#19c995' : '#ff9a32'
-          };border-radius:20px"></div>
+          <div style="height:100%;width:${percent}%;background:${successfulStatus ? '#19c995' : '#ff9a32'};border-radius:20px"></div>
         </div>
       </div>
     `;
@@ -531,14 +544,12 @@ async function referralPage() {
         <p class="muted">প্রতি ১টি সফল Referral-এর জন্য ৳১০।</p>
         <p class="muted">১০টি সফল Referral হলে Withdrawal আনলক হবে।</p>
       </div>
-
       <div class="stat-grid">
         <div class="stat-card"><b>${successful}</b><small>Successful referrals</small></div>
         <div class="stat-card"><b>${inProgress}</b><small>In progress</small></div>
         <div class="stat-card"><b>${total}</b><small>Total invited</small></div>
-        <div class="stat-card"><b>${Math.max(0, required - successful)}</b><small>More needed for withdrawal</small></div>
+        <div class="stat-card"><b>${Math.max(0, required - successful)}</b><small>More needed</small></div>
       </div>
-
       <div class="panel" style="margin-top:12px">
         <div class="field">
           <label>Your personal referral link</label>
@@ -551,30 +562,19 @@ async function referralPage() {
           Referral bonus: ${money(REFERRAL_BONUS)} • Withdrawal unlocks at ${required} successful referrals.
         </p>
       </div>
-
       <h2 class="section-title" style="margin-top:20px">Your invited users</h2>
       <div class="list">
-        ${
-          referralRows ||
-          '<div class="empty">No invited users yet. Share your referral link to invite friends.</div>'
-        }
+        ${referralRows || '<div class="empty">No invited users yet. Share your referral link to invite friends.</div>'}
       </div>
-
       ${channelButton()}
     `
   );
 
   document.getElementById('copyRef').onclick = async () => {
     const input = document.getElementById('refLink');
-
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(link);
-      } else {
-        input.select();
-        document.execCommand('copy');
-      }
-
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(link);
+      else { input.select(); document.execCommand('copy'); }
       toast('Referral link copied');
     } catch (e) {
       input.select();
@@ -583,20 +583,14 @@ async function referralPage() {
   };
 }
 
-/* WALLET PAGE */
+/* =====================================================
+   WALLET
+   ===================================================== */
 async function walletPage() {
   await refreshMe();
-
   const referralData = await api('/api/referrals');
-
-  const successful = Number(
-    referralData.successfulCount ?? referralData.count ?? 0
-  );
-
-  const required = Number(
-    referralData.requiredSuccessfulReferrals || REQUIRED_REFERRALS
-  );
-
+  const successful = Number(referralData.successfulCount ?? referralData.count ?? 0);
+  const required = Number(referralData.requiredSuccessfulReferrals || REQUIRED_REFERRALS);
   const locked = successful < required;
 
   view.innerHTML = shell(
@@ -608,35 +602,27 @@ async function walletPage() {
         <div class="amount">${money(me.balance)}</div>
         <p class="muted">Minimum withdrawal: configured by platform</p>
       </div>
-
       <div class="panel" style="margin-top:12px">
         <b>Referral requirement</b>
-
         <div style="display:flex;justify-content:space-between;margin-top:10px">
           <span class="muted">Successful referrals</span>
           <b>${successful}/${required}</b>
         </div>
-
         <div style="height:8px;background:#293653;border-radius:20px;overflow:hidden;margin-top:8px">
           <div style="height:100%;width:${Math.min(100, successful / required * 100)}%;background:#19c995"></div>
         </div>
-
         <p class="muted" style="font-size:11px;margin-bottom:0">
-          ${
-            locked
-              ? `Withdrawal is locked. Complete ${required - successful} more successful referral(s).`
-              : 'Your referral requirement is complete. Withdrawal is unlocked.'
-          }
+          ${locked
+            ? `Withdrawal is locked. Complete ${required - successful} more successful referral(s).`
+            : 'Your referral requirement is complete. Withdrawal is unlocked.'}
         </p>
       </div>
-
       <div class="panel" style="margin-top:12px">
         <form id="withdrawForm" class="form">
           <div class="field">
             <label>Amount (BDT)</label>
             <input name="amount" type="number" min="1" step="0.01" required placeholder="Enter amount">
           </div>
-
           <div class="field">
             <label>Payment method</label>
             <select name="method" required>
@@ -646,33 +632,26 @@ async function walletPage() {
               <option>Binance USDT</option>
             </select>
           </div>
-
           <div class="field">
             <label>Payment account / wallet address</label>
             <input name="account" required minlength="5" maxlength="120" placeholder="Enter number or wallet address">
           </div>
-
-          <button class="primary-btn full"
-            ${locked ? 'disabled style="opacity:.45;cursor:not-allowed"' : ''}>
+          <button class="primary-btn full" ${locked ? 'disabled style="opacity:.45;cursor:not-allowed"' : ''}>
             ${locked ? 'Locked — Need More Referrals' : 'Submit Withdrawal'}
           </button>
         </form>
       </div>
-
       ${channelButton()}
     `
   );
 
   document.getElementById('withdrawForm').onsubmit = async e => {
     e.preventDefault();
-
     if (locked) {
       toast(`You need ${required - successful} more successful referrals.`);
       return;
     }
-
     const f = new FormData(e.target);
-
     gateThen(async () => {
       try {
         const d = await api('/api/withdraw', {
@@ -683,10 +662,9 @@ async function walletPage() {
             account: f.get('account')
           })
         });
-
         toast(d.message || 'Request submitted');
         await walletPage();
-        mountBannerAds(view);
+        mountAllBanners(view);
         connectChannelButton();
       } catch (err) {
         toast(err.message);
@@ -695,10 +673,11 @@ async function walletPage() {
   };
 }
 
-/* HISTORY PAGE */
+/* =====================================================
+   HISTORY
+   ===================================================== */
 async function historyPage() {
   const items = await api('/api/history');
-
   view.innerHTML = shell(
     'Transaction History',
     'Your latest wallet activities.',
@@ -721,21 +700,15 @@ async function historyPage() {
   );
 }
 
-/* PROFILE PAGE */
+/* =====================================================
+   PROFILE
+   ===================================================== */
 async function profilePage() {
   await refreshMe();
-
   const joined = me.createdAt
-    ? new Date(me.createdAt).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
+    ? new Date(me.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
-
-  const lastLogin = me.lastLogin
-    ? new Date(me.lastLogin).toLocaleString('en-GB')
-    : '—';
+  const lastLogin = me.lastLogin ? new Date(me.lastLogin).toLocaleString('en-GB') : '—';
 
   view.innerHTML = shell(
     'My Profile',
@@ -749,9 +722,7 @@ async function profilePage() {
             <p class="muted">@${esc(me.username || 'no_username')} • ID ${esc(me.telegramId)}</p>
           </div>
         </div>
-
         <div class="divider"></div>
-
         <div class="profile-detail-grid">
           <div class="profile-detail"><small>Account status</small><b class="status-badge">${esc(me.status || 'active')}</b></div>
           <div class="profile-detail"><small>Member since</small><b>${esc(joined)}</b></div>
@@ -761,9 +732,7 @@ async function profilePage() {
           <div class="profile-detail"><small>Phone</small><b>${esc(me.phone || 'Not added')}</b></div>
         </div>
       </div>
-
       <h2 class="section-title">Account Overview</h2>
-
       <div class="stat-grid profile-stats">
         <div class="stat-card"><small>Total balance</small><b>${money(me.balance)}</b></div>
         <div class="stat-card"><small>Total earnings</small><b>${money(me.totalEarnings)}</b></div>
@@ -772,11 +741,7 @@ async function profilePage() {
         <div class="stat-card"><small>Pending tasks</small><b>${Number(me.pendingTasks || 0)}</b></div>
         <div class="stat-card"><small>Total withdrawn</small><b>${money(me.withdrawnAmount)}</b></div>
       </div>
-
-      <button class="secondary-btn full profile-history-btn" id="historyBtn">
-        View transaction history
-      </button>
-
+      <button class="secondary-btn full profile-history-btn" id="historyBtn">View transaction history</button>
       ${channelButton()}
     `
   );
@@ -786,7 +751,9 @@ async function profilePage() {
   };
 }
 
-/* Informational pages use only the existing app shell and do not create fake rewards. */
+/* =====================================================
+   Info / Empty / Support
+   ===================================================== */
 async function infoPage(title, subtitle, items) {
   view.innerHTML = shell(title, subtitle, `
     <div class="list">
@@ -828,26 +795,26 @@ async function supportPage() {
   if (btn) btn.onclick = () => tg?.openLink ? tg.openLink(supportUrl) : window.open(supportUrl, '_blank', 'noopener');
 }
 
-/* START APPLICATION */
+/* =====================================================
+   BOOT
+   ===================================================== */
 async function boot() {
+  // Global banner গুলো একবার inject
+  mountAllBanners(document);
+
   if (!initData) {
     view.innerHTML = '<div class="empty">Please open EarnWalletBot from your Telegram bot. Direct browser access is not authenticated.</div>';
     return;
   }
 
   try {
-    const d = await api('/api/auth', {
-      method: 'POST',
-      body: '{}'
-    });
-
+    const d = await api('/api/auth', { method: 'POST', body: '{}' });
     me = d;
 
     await loadAdPlacements(true);
     await loadPage('home');
 
-    hydrateAdSlots(document);
-    mountBannerAds(document);
+    mountAllBanners(document);
     connectChannelButton();
   } catch (e) {
     view.innerHTML = `<div class="empty">${esc(e.message)}<br><br><button class="secondary-btn" onclick="location.reload()">Try again</button></div>`;
