@@ -1,499 +1,1168 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EarnWallet - অ্যাডমিন কন্ট্রোল প্যানেল</title>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-hover: #1d4ed8;
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-secondary: #64748b;
-            --border: #e2e8f0;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #d97706;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'SolaimanLipi', Arial, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        
-        /* হেডার ও থ্রি-ডট মেনু বার */
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            background: var(--card-bg); padding: 20px; border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;
-            border: 1px solid var(--border);
-        }
-        h1 { font-size: 22px; color: var(--primary); }
-        .admin-badge { background: #dbeafe; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
-        
-        /* মেনু বার ও ড্রপডাউন */
-        .nav-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            background: var(--card-bg); padding: 10px 15px; border-radius: 12px;
-            border: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
-        }
-        .quick-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-        .tab-btn {
-            background: transparent; border: none; padding: 8px 14px; border-radius: 8px;
-            cursor: pointer; font-size: 14px; font-weight: bold; color: var(--text-secondary);
-            transition: all 0.2s;
-        }
-        .tab-btn.active, .tab-btn:hover { background: var(--primary); color: white; }
-        
-        /* থ্রি-ডট মেনু */
-        .dropdown { position: relative; display: inline-block; }
-        .dropbtn { background: #334155; color: white; padding: 8px 16px; font-size: 16px; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; }
-        .dropdown-content {
-            display: none; position: absolute; right: 0; background: var(--card-bg);
-            min-width: 240px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 100;
-            border-radius: 8px; border: 1px solid var(--border); overflow: hidden; max-height: 400px; overflow-y: auto;
-        }
-        .dropdown-content button {
-            color: var(--text-main); padding: 10px 15px; text-decoration: none; display: block;
-            width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 14px;
-        }
-        .dropdown-content button:hover { background: #f1f5f9; color: var(--primary); }
-        .dropdown:hover .dropdown-content { display: block; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f5f8ff">
+<title>EarnWallet Admin</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#f5f8ff;
+  --surface:#ffffff;
+  --surface-2:#f0f4fb;
+  --border:#e2e9f5;
+  --text:#1a2540;
+  --muted:#6b7a99;
+  --sky:#38bdf8;
+  --sky-d:#0284c7;
+  --purple:#8b5cf6;
+  --purple-d:#7c3aed;
+  --green:#10b981;
+  --red:#ef4444;
+  --amber:#f59e0b;
+  --shadow:0 2px 8px rgba(30,64,175,.06);
+  --shadow-lg:0 12px 40px rgba(30,64,175,.14);
+  --radius:14px;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;
+  --surface:#1a2540;
+  --surface-2:#232f4d;
+  --border:#2d3a5c;
+  --text:#e8eef9;
+  --muted:#94a3c4;
+  --shadow:0 2px 8px rgba(0,0,0,.3);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  font-size:14px;line-height:1.5;
+  transition:background .25s,color .25s;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+a{color:var(--sky-d);text-decoration:none}
 
-        /* প্যানেল সেকশন */
-        .section-panel { display: none; }
-        .section-panel.active { display: block; }
-        
-        /* কার্ড ও গ্রিড */
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card h3 { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
-        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary); }
-        
-        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
-        
-        /* টেবিল ডিজাইন */
-        .table-responsive { width: 100%; overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; }
-        th { background: #f8fafc; color: var(--text-main); font-weight: bold; }
-        
-        /* বাটন ও ফর্ম */
-        .btn { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; margin-right: 4px; }
-        .btn:hover { opacity: 0.9; }
-        .btn-success { background: var(--success); }
-        .btn-danger { background: var(--danger); }
-        .btn-warning { background: var(--warning); color: white; }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: var(--text-secondary); }
-        .form-control { width: 100%; padding: 10px; background: #fff; border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; font-size: 14px; }
-        .loading { text-align: center; padding: 30px; color: var(--text-secondary); }
-    </style>
+/* ============ LAYOUT ============ */
+.app{min-height:100vh;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:30;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:14px 20px;display:flex;align-items:center;gap:14px;
+  box-shadow:var(--shadow);
+}
+.brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.logo{
+  width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--sky) 0%,var(--purple) 100%);
+  color:#fff;font-weight:800;font-size:20px;
+  display:grid;place-items:center;
+  box-shadow:0 4px 14px rgba(139,92,246,.35);
+}
+.brand h1{font-size:16px;margin:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{font-size:10px;color:var(--muted);letter-spacing:1px;font-weight:600}
+.top-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{
+  width:38px;height:38px;border-radius:10px;
+  display:grid;place-items:center;font-size:18px;
+  background:var(--surface-2);color:var(--text);
+  transition:background .15s,transform .15s;
+}
+.icon-btn:hover{background:var(--border)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.accent{background:linear-gradient(135deg,var(--sky),var(--purple));color:#fff}
+.icon-btn.accent:hover{filter:brightness(1.08);background:linear-gradient(135deg,var(--sky),var(--purple))}
+
+.main{padding:22px 20px 60px;max-width:1400px;margin:0 auto;width:100%}
+.page-head{margin-bottom:20px}
+.page-head h2{font-size:22px;margin:0 0 4px;font-weight:700}
+.page-head p{margin:0;color:var(--muted);font-size:13px}
+
+.page{display:none;animation:fade .25s ease}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ============ THREE-DOT MENU ============ */
+.menu-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.45);
+  z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;
+  backdrop-filter:blur(2px);
+}
+.menu-overlay.show{opacity:1;pointer-events:auto}
+.menu-panel{
+  position:fixed;top:0;right:0;bottom:0;width:340px;max-width:92vw;
+  background:var(--surface);z-index:90;
+  box-shadow:var(--shadow-lg);
+  transform:translateX(100%);transition:transform .25s ease;
+  display:flex;flex-direction:column;
+}
+.menu-panel.show{transform:none}
+.menu-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.menu-header h3{margin:0;font-size:16px}
+.menu-search{padding:14px 16px;border-bottom:1px solid var(--border)}
+.menu-search input{
+  width:100%;padding:11px 14px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface-2);
+  font-size:13px;outline:none;
+}
+.menu-search input:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+.menu-list{flex:1;overflow-y:auto;padding:10px}
+.menu-item{
+  width:100%;display:flex;align-items:center;gap:12px;
+  padding:12px 14px;border-radius:10px;text-align:left;
+  transition:background .15s;margin-bottom:2px;
+}
+.menu-item:hover{background:var(--surface-2)}
+.menu-item.active{background:linear-gradient(90deg,rgba(56,189,248,.12),rgba(139,92,246,.12));color:var(--purple-d);font-weight:600}
+[data-theme="dark"] .menu-item.active{color:#a78bfa}
+.menu-item .ico{
+  width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+  background:var(--surface-2);font-size:16px;flex-shrink:0;
+}
+.menu-item.active .ico{background:linear-gradient(135deg,var(--sky),var(--purple));color:#fff}
+.menu-item .label{flex:1;font-size:13px}
+.menu-item .label small{display:block;color:var(--muted);font-size:11px;font-weight:400;margin-top:1px}
+.menu-item.active .label small{color:inherit;opacity:.75}
+.menu-section-label{
+  font-size:10px;letter-spacing:1.2px;font-weight:700;
+  color:var(--muted);padding:14px 14px 6px;text-transform:uppercase;
+}
+
+/* ============ CARDS ============ */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:18px;
+  box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s;
+}
+.stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.stat-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.stat-icon{
+  width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+  font-size:18px;flex-shrink:0;
+}
+.stat-icon.sky{background:rgba(56,189,248,.15);color:var(--sky-d)}
+.stat-icon.purple{background:rgba(139,92,246,.15);color:var(--purple-d)}
+.stat-icon.green{background:rgba(16,185,129,.15);color:var(--green)}
+.stat-icon.amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.stat small{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.stat h2{font-size:24px;margin:0;font-weight:700;letter-spacing:-.5px;overflow-wrap:anywhere}
+.stat p{margin:4px 0 0;color:var(--muted);font-size:11px}
+
+/* ============ PANEL ============ */
+.panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;margin-bottom:18px;
+  box-shadow:var(--shadow);
+}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.panel-head h3{margin:0;font-size:15px;font-weight:700}
+.panel-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
+
+/* ============ BUTTONS ============ */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;
+  background:linear-gradient(135deg,var(--sky),var(--purple));color:#fff;
+  transition:transform .12s,filter .15s,box-shadow .15s;
+  box-shadow:0 2px 6px rgba(139,92,246,.25);
+}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.secondary{background:var(--surface-2);color:var(--text);box-shadow:none;border:1px solid var(--border)}
+.btn.secondary:hover{background:var(--border)}
+.btn.green{background:var(--green);box-shadow:0 2px 6px rgba(16,185,129,.3)}
+.btn.red{background:var(--red);box-shadow:0 2px 6px rgba(239,68,68,.3)}
+.btn.small{padding:6px 11px;font-size:11px;border-radius:8px}
+.btn.ghost{background:transparent;color:var(--muted);box-shadow:none;border:1px solid var(--border)}
+
+/* ============ FORMS ============ */
+.field{margin-bottom:14px}
+.field label{display:block;color:var(--muted);font-size:12px;font-weight:600;margin-bottom:6px}
+.field input,.field textarea,.field select{
+  width:100%;padding:11px 13px;border-radius:10px;
+  border:1px solid var(--border);background:var(--surface-2);
+  font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+.field input:focus,.field textarea:focus,.field select:focus{
+  border-color:var(--purple);box-shadow:0 0 0 3px rgba(139,92,246,.15);
+  background:var(--surface);
+}
+.field textarea{min-height:100px;resize:vertical;font-family:inherit}
+.field input[type=checkbox]{width:18px;height:18px;accent-color:var(--purple)}
+.check-row{display:flex;align-items:center;gap:10px;font-size:13px;margin:12px 0;cursor:pointer}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+
+/* ============ TABLE ============ */
+.table-wrap{width:100%;overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th{
+  text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--muted);
+  padding:12px 14px;background:var(--surface-2);
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--surface-2)}
+.muted{color:var(--muted)}
+.badge{
+  display:inline-block;padding:4px 10px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:.3px;
+}
+.badge.green{background:rgba(16,185,129,.15);color:#047857}
+.badge.red{background:rgba(239,68,68,.15);color:#b91c1c}
+.badge.amber{background:rgba(245,158,11,.15);color:#b45309}
+.badge.blue{background:rgba(56,189,248,.15);color:#0369a1}
+.badge.gray{background:var(--surface-2);color:var(--muted)}
+[data-theme="dark"] .badge.green{color:#34d399}
+[data-theme="dark"] .badge.red{color:#f87171}
+[data-theme="dark"] .badge.amber{color:#fbbf24}
+[data-theme="dark"] .badge.blue{color:#38bdf8}
+.empty{text-align:center;color:var(--muted);padding:36px 12px;font-size:13px}
+.empty .big{font-size:32px;display:block;margin-bottom:8px;opacity:.5}
+
+/* ============ NOTICE ============ */
+.notice{
+  padding:13px 16px;border-radius:11px;
+  background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);
+  color:var(--sky-d);font-size:12px;line-height:1.55;margin-bottom:14px;
+}
+.notice.warn{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.3);color:#b45309}
+[data-theme="dark"] .notice{color:#7dd3fc}
+[data-theme="dark"] .notice.warn{color:#fbbf24}
+
+/* ============ PAYMENT SWITCH ============ */
+.payment-card{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px;border:1px solid var(--border);border-radius:12px;
+  background:var(--surface-2);margin-bottom:10px;
+}
+.payment-card strong{display:block;font-size:14px}
+.payment-card small{color:var(--muted);font-size:11px}
+.switch{position:relative;width:46px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{
+  position:absolute;inset:0;background:var(--border);
+  border-radius:20px;transition:.2s;cursor:pointer;
+}
+.switch .slider:before{
+  content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;
+  background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider{background:var(--green)}
+.switch input:checked + .slider:before{transform:translateX(20px)}
+
+/* ============ TOAST ============ */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:200;
+  padding:13px 18px;border-radius:12px;
+  background:#1a2540;color:#fff;font-size:13px;
+  max-width:calc(100vw - 48px);box-shadow:var(--shadow-lg);
+  display:none;animation:slideIn .25s ease;
+}
+.toast.show{display:block}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+@keyframes slideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* ============ MODAL ============ */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);
+  z-index:100;display:none;align-items:center;justify-content:center;
+  padding:16px;backdrop-filter:blur(3px);
+}
+.modal-overlay.show{display:flex}
+.modal{
+  background:var(--surface);border-radius:16px;
+  width:100%;max-width:560px;max-height:88vh;overflow-y:auto;
+  box-shadow:var(--shadow-lg);animation:fade .2s;
+}
+.modal-head{
+  padding:18px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.modal-head h3{margin:0;font-size:16px}
+.modal-body{padding:20px}
+.detail-row{
+  display:flex;justify-content:space-between;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.detail-row:last-child{border-bottom:0}
+.detail-row .k{color:var(--muted);font-weight:600}
+.detail-row .v{font-weight:600;text-align:right;word-break:break-word}
+
+/* ============ SKELETON / LOADING ============ */
+.skeleton{
+  background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);
+  background-size:200% 100%;animation:shimmer 1.4s infinite;
+  border-radius:6px;height:14px;display:inline-block;width:100%;
+}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ============ RESPONSIVE ============ */
+@media(max-width:900px){
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .grid2,.grid3{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+  .main{padding:16px 13px 50px}
+  .topbar{padding:12px 14px}
+  .brand small{display:none}
+  .cards{grid-template-columns:repeat(2,1fr);gap:10px}
+  .stat{padding:14px}
+  .stat h2{font-size:20px}
+  .stat-icon{width:34px;height:34px;font-size:15px}
+  .panel{padding:15px}
+  .page-head h2{font-size:18px}
+  .toast{left:16px;right:16px;bottom:16px;max-width:none}
+  .btn.small{padding:5px 9px}
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <!-- হেডার -->
-        <header>
-            <h1>EarnWallet - অ্যাডমিন কন্ট্রোল প্যানেল</h1>
-            <div class="admin-badge">সিকিউরড সার্ভার অথেন্টিকেটেড</div>
-        </header>
 
-        <!-- নেভিগেশন বার ও থ্রি-ডট মেনু -->
-        <div class="nav-bar">
-            <div class="quick-tabs">
-                <button class="tab-btn active" onclick="switchSection('dashboard', event)">📊 ড্যাশবোর্ড</button>
-                <button class="tab-btn" onclick="switchSection('users', event)">👥 ইউজার্স</button>
-                <button class="tab-btn" onclick="switchSection('withdrawals', event)">💳 উইথড্রয়াল</button>
-                <button class="tab-btn" onclick="switchSection('tasks', event)">📝 টাস্ক রিভিউ</button>
-            </div>
-            
-            <!-- থ্রি-ডট মেনু -->
-            <div class="dropdown">
-                <button class="dropbtn">⚙️ সকল মেনু (⋮)</button>
-                <div class="dropdown-content">
-                    <button onclick="switchSection('dashboard', event)">📊 মূল ড্যাশবোর্ড</button>
-                    <button onclick="switchSection('users', event)">👥 ইউজার ম্যানেজমেন্ট</button>
-                    <button onclick="switchSection('ads', event)">📢 অ্যাডস ও মনিটাইজেশন</button>
-                    <button onclick="switchSection('watch-ads', event)">📺 ওয়াচ অ্যাডস ম্যানেজমেন্ট</button>
-                    <button onclick="switchSection('referrals', event)">🔗 রেফারেল ম্যানেজমেন্ট</button>
-                    <button onclick="switchSection('withdrawals', event)">💳 উইথড্রয়াল ম্যানেজমেন্ট</button>
-                    <button onclick="switchSection('tasks', event)">📝 টাস্ক ও জবস</button>
-                    <button onclick="switchSection('finance', event)">💰 ফিন্যান্স ও ট্রানজাকশন</button>
-                    <button onclick="switchSection('daily-bonus', event)">🎁 ডেইলি বোনাস সেটিংস</button>
-                    <button onclick="switchSection('notifications', event)">📬 নোটিফিকেশন ব্রডকাস্ট</button>
-                    <button onclick="switchSection('leaderboard', event)">🏆 লিডারবোর্ড</button>
-                    <button onclick="switchSection('support', event)">🎫 সাপোর্ট ও হেল্প ডেস্ক</button>
-                    <button onclick="switchSection('content', event)">📱 অ্যাপ কন্টেন্ট ম্যানেজমেন্ট</button>
-                    <button onclick="switchSection('settings', event)">🛠️ গ্লোবাল সেটিংস</button>
-                    <button onclick="switchSection('backup', event)">💾 ব্যাকআপ ও রিস্টোর</button>
-                    <button onclick="switchSection('audit-logs', event)">🔒 সিকিউরিটি ও অডিট লগ</button>
-                </div>
-            </div>
-        </div>
+<!-- MENU OVERLAY -->
+<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
 
-        <!-- ১. ড্যাশবোর্ড সেকশন -->
-        <div id="dashboard" class="section-panel active">
-            <div class="grid">
-                <div class="card"><h3>মোট রেজিস্টার্ড ইউজার</h3><div class="stat-value" id="stat-total-users">০</div></div>
-                <div class="card"><h3>অপেক্ষমাণ উইথড্রয়াল</h3><div class="stat-value" id="stat-pending-withdrawals">০</div></div>
-                <div class="card"><h3>পেন্ডিং টাস্ক সাবমিশন</h3><div class="stat-value" id="stat-pending-tasks">০</div></div>
-                <div class="card"><h3>মোট ইউজার ব্যালেন্স</h3><div class="stat-value" id="stat-total-balance">৳ ০.০০</div></div>
-            </div>
-        </div>
+<!-- THREE-DOT SLIDE MENU -->
+<aside class="menu-panel" id="menuPanel">
+  <div class="menu-header">
+    <h3>Admin Menu</h3>
+    <button class="icon-btn" onclick="closeMenu()" aria-label="Close">✕</button>
+  </div>
+  <div class="menu-search">
+    <input id="menuSearch" placeholder="Search section..." oninput="filterMenu(this.value)">
+  </div>
+  <div class="menu-list" id="menuList"></div>
+</aside>
 
-        <!-- ২. ইউজার ম্যানেজমেন্ট সেকশন -->
-        <div id="users" class="section-panel">
-            <div class="card">
-                <div class="section-title">ইউজার তালিকা ও নিয়ন্ত্রণ</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ইউজার আইডি</th>
-                                <th>টেলিগ্রাম নাম</th>
-                                <th>ব্যালেন্স</th>
-                                <th>রেফারেল</th>
-                                <th>স্ট্যাটাস</th>
-                                <th>অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody id="users-table-body">
-                            <tr><td colspan="6" class="loading">ডাটা লোড হচ্ছে...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<!-- APP -->
+<div class="app">
 
-        <!-- ৩. অ্যাডস ম্যানেজমেন্ট সেকশন -->
-        <div id="ads" class="section-panel">
-            <div class="card" style="max-width: 800px; margin: 0 auto;">
-                <div class="section-title">Adsterra ও Monetag কনফিগারেশন</div>
-                <div class="form-group">
-                    <label>ব্যানার অ্যাড স্ক্রিপ্ট / কোড</label>
-                    <textarea class="form-control" rows="3" id="banner-ad-script" placeholder="ব্যানার অ্যাড কোড এখানে পেস্ট করুন"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>রিওয়ার্ড ভিডিও অ্যাড লিঙ্ক</label>
-                    <input type="text" class="form-control" id="reward-ad-link" placeholder="ভিডিও অ্যাড লিঙ্ক">
-                </div>
-                <button class="btn btn-success" onclick="saveAdsConfig()">বিজ্ঞাপন সেটিংস সংরক্ষণ করুন</button>
-            </div>
-        </div>
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">E</div>
+      <div>
+        <h1>EarnWallet Admin</h1>
+        <small id="topStatus">CONNECTING…</small>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      <button class="icon-btn" onclick="refreshCurrent()" title="Refresh">↻</button>
+      <button class="icon-btn accent" onclick="openMenu()" title="Menu">⋮</button>
+    </div>
+  </header>
 
-        <!-- ৪. ওয়াচ অ্যাডস ম্যানেজমেন্ট -->
-        <div id="watch-ads" class="section-panel">
-            <div class="card">
-                <div class="section-title">ওয়াচ অ্যাডস লিস্ট ও কন্ট্রোল</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>অ্যাড টাইটেল</th>
-                                <th>রিওয়ার্ড পরিমাণ</th>
-                                <th>টাইমার (সেকেন্ড)</th>
-                                <th>স্ট্যাটাস</th>
-                                <th>অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody id="watch-ads-table-body">
-                            <tr><td colspan="5" class="loading">কোনো অ্যাড পাওয়া যায়নি।</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ৫. রেফারেল ম্যানেজমেন্ট -->
-        <div id="referrals" class="section-panel">
-            <div class="card">
-                <div class="section-title">রেফারেল ওভারভিউ ও হিস্ট্রি</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>রেফারার আইডি</th>
-                                <th>রেফারকৃত ইউজার</th>
-                                <th>স্ট্যাটাস</th>
-                                <th>বোনাস</th>
-                            </tr>
-                        </thead>
-                        <tbody id="referrals-table-body">
-                            <tr><td colspan="4" class="loading">কোনো রেফারেল রেকর্ড নেই।</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ৬. উইথড্রয়াল ম্যানেজমেন্ট -->
-        <div id="withdrawals" class="section-panel">
-            <div class="card">
-                <div class="section-title">পেমেন্ট উইথড্রয়াল রিকোয়েস্ট ও অডিট</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ইউজার আইডি</th>
-                                <th>মেথড</th>
-                                <th>অ্যাকাউন্ট</th>
-                                <th>পরিমাণ</th>
-                                <th>স্ট্যাটাস</th>
-                                <th>অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody id="withdrawals-table-body">
-                            <tr><td colspan="6" class="loading">উইথড্রয়াল ডাটা লোড হচ্ছে...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ৭. টাস্ক ম্যানেজমেন্ট -->
-        <div id="tasks" class="section-panel">
-            <div class="card">
-                <div class="section-title">টাস্ক সাবমিশন ও এপ্রুভাল</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ইউজার আইডি</th>
-                                <th>টাস্ক নাম</th>
-                                <th>প্রমাণ / লিঙ্ক</th>
-                                <th>পুরস্কার</th>
-                                <th>অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tasks-table-body">
-                            <tr><td colspan="5" class="loading">টাস্ক ডাটা লোড হচ্ছে...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ৮. ফিন্যান্স ও ট্রানজাকশন -->
-        <div id="finance" class="section-panel">
-            <div class="card">
-                <div class="section-title">সকল ট্রানজাকশন হিস্ট্রি</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ট্রানজাকশন আইডি</th>
-                                <th>ইউজার আইডি</th>
-                                <th>টাইপ</th>
-                                <th>পরিমাণ</th>
-                                <th>তারিখ</th>
-                            </tr>
-                        </thead>
-                        <tbody id="finance-table-body">
-                            <tr><td colspan="5" class="loading">কোনো ট্রানজাকশন নেই।</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ৯. ডেইলি বোনাস সেটিংস -->
-        <div id="daily-bonus" class="section-panel">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-                <div class="section-title">ডেইলি বোনাস কনফিগারেশন</div>
-                <div class="form-group">
-                    <label>দৈনিক বোনাস পরিমাণ (টাকা)</label>
-                    <input type="number" class="form-control" id="daily-bonus-amount" value="5">
-                </div>
-                <button class="btn btn-success" onclick="saveDailyBonus()">সংরক্ষণ করুন</button>
-            </div>
-        </div>
-
-        <!-- ১০. নোটিফিকেশন ব্রডকাস্ট -->
-        <div id="notifications" class="section-panel">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-                <div class="section-title">সকল ব্যবহারকারীকে বার্তা পাঠান</div>
-                <div class="form-group">
-                    <label>মেসেজ টেক্সট</label>
-                    <textarea class="form-control" rows="4" id="broadcast-message" placeholder="বার্তা লিখুন..."></textarea>
-                </div>
-                <button class="btn btn-success" onclick="sendBroadcast()">ব্রডকাস্ট করুন</button>
-            </div>
-        </div>
-
-        <!-- ১১. লিডারবোর্ড ম্যানেজমেন্ট -->
-        <div id="leaderboard" class="section-panel">
-            <div class="card">
-                <div class="section-title">টপ আর্নারস লিডারবোর্ড</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>র‍্যাংক</th>
-                                <th>ইউজার আইডি</th>
-                                <th>নাম</th>
-                                <th>মোট আয়</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaderboard-table-body">
-                            <tr><td colspan="4" class="loading">ডাটা লোড হচ্ছে...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ১২. সাপোর্ট ও হেল্প ডেস্ক -->
-        <div id="support" class="section-panel">
-            <div class="card">
-                <div class="section-title">ইউজার সাপোর্ট টিকিট</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>টিকিট আইডি</th>
-                                <th>ইউজার আইডি</th>
-                                <th>মেসেজ</th>
-                                <th>স্ট্যাটাস</th>
-                                <th>অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody id="support-table-body">
-                            <tr><td colspan="5" class="loading">কোনো সাপোর্ট টিকিট নেই।</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- ১৩. অ্যাপ কন্টেন্ট ম্যানেজমেন্ট -->
-        <div id="content" class="section-panel">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-                <div class="section-title">অ্যাপ অ্যানাউন্সমেন্ট ও কন্টেন্ট</div>
-                <div class="form-group">
-                    <label>হোম পেজ নোটিশ / অ্যানাউন্সমেন্ট</label>
-                    <textarea class="form-control" rows="3" id="app-announcement"></textarea>
-                </div>
-                <button class="btn btn-success" onclick="saveAppContent()">আপডেট করুন</button>
-            </div>
-        </div>
-
-        <!-- ১৪. গ্লোবাল সেটিংস -->
-        <div id="settings" class="section-panel">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-                <div class="section-title">গ্লোবাল সিস্টেম সেটিংস</div>
-                <div class="form-group">
-                    <label>ন্যূনতম উইথড্রয়াল লিমিট (টাকা)</label>
-                    <input type="number" class="form-control" id="min-withdrawal" value="100">
-                </div>
-                <div class="form-group">
-                    <label>রেফারেল বোনাস</label>
-                    <input type="number" class="form-control" id="ref-bonus" value="10">
-                </div>
-                <button class="btn btn-success" onclick="saveGlobalSettings()">সেটিংস সংরক্ষণ করুন</button>
-            </div>
-        </div>
-
-        <!-- ১৫. ব্যাকআপ ও রিস্টোর -->
-        <div id="backup" class="section-panel">
-            <div class="card" style="max-width: 600px; margin: 0 auto;">
-                <div class="section-title">ডাটাবেস ব্যাকআপ</div>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">বর্তমান সিস্টেমের ডেটা সুরক্ষিত রাখতে ব্যাকআপ ডাউনলোড করুন।</p>
-                <button class="btn" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
-            </div>
-        </div>
-
-        <!-- ১৬. সিকিউরিটি ও অডিট লগ -->
-        <div id="audit-logs" class="section-panel">
-            <div class="card">
-                <div class="section-title">অ্যাডমিন অ্যাকশন অডিট লগ</div>
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>সময়</th>
-                                <th>অ্যাডমিন</th>
-                                <th>কার্যক্রম</th>
-                                <th>স্ট্যাটাস</th>
-                            </tr>
-                        </thead>
-                        <tbody id="audit-logs-table-body">
-                            <tr><td colspan="4" class="loading">কোনো লগ পাওয়া যায়নি।</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+  <!-- MAIN -->
+  <main class="main">
+    <div class="page-head">
+      <h2 id="pageTitle">Dashboard</h2>
+      <p id="pageSubtitle">Welcome to your EarnWallet control center.</p>
     </div>
 
-    <!-- জাভাস্ক্রিপ্ট লজিক -->
-    <script>
-        const ADMIN_TOKEN = 'secure_admin_token_2026';
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="cards">
+        <div class="stat">
+          <div class="stat-top"><div class="stat-icon sky">👥</div><small>Users</small></div>
+          <h2 id="statUsers">—</h2><p>Registered accounts</p>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><div class="stat-icon green">🟢</div><small>Active</small></div>
+          <h2 id="statActive">—</h2><p>Active accounts</p>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><div class="stat-icon purple">💰</div><small>Balance</small></div>
+          <h2 id="statBalance">—</h2><p>All user balances</p>
+        </div>
+        <div class="stat">
+          <div class="stat-top"><div class="stat-icon amber">⏳</div><small>Pending</small></div>
+          <h2 id="statPending">—</h2><p>Withdrawals awaiting</p>
+        </div>
+      </div>
 
-        // সেকশন বা ট্যাব পরিবর্তনের ফাংশন
-        function switchSection(sectionId, event) {
-            document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            
-            const target = document.getElementById(sectionId);
-            if (target) target.classList.add('active');
-            
-            if (event && event.currentTarget.classList.contains('tab-btn')) {
-                event.currentTarget.classList.add('active');
-            }
-        }
+      <div class="panel">
+        <div class="panel-head">
+          <div><h3>System Overview</h3><p>Live information from your Firestore database.</p></div>
+          <span class="badge gray" id="dashStatus">Checking…</span>
+        </div>
+        <div class="grid2">
+          <div class="notice">🛡️ Authentication is verified via your Admin Bot Telegram Mini App <code>initData</code>.</div>
+          <div class="notice">🔥 Firebase Firestore + Node.js backend on Render.</div>
+        </div>
+      </div>
 
-        // সার্ভার থেকে রিয়েল ডাটা ফেচ করা
-        async function loadAdminData() {
-            try {
-                const response = await fetch('/api/admin/stats', {
-                    headers: { 'x-admin-token': ADMIN_TOKEN }
-                });
-                if (!response.ok) throw new Error('এডমিন অথেন্টিকেশন ব্যর্থ হয়েছে।');
-                
-                const result = await response.json();
-                if (result.success && result.data) {
-                    document.getElementById('stat-total-users').innerText = result.data.totalUsers || 0;
-                    document.getElementById('stat-pending-withdrawals').innerText = result.data.totalWithdrawalsPending || 0;
-                    document.getElementById('stat-pending-tasks').innerText = result.data.totalTasksPending || 0;
-                    document.getElementById('stat-total-balance').innerText = '৳ ' + (result.data.systemBalance || 0);
-                }
+      <div class="panel">
+        <div class="panel-head"><div><h3>Quick Actions</h3><p>Jump to key sections.</p></div></div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn" onclick="go('users')">Manage Users</button>
+          <button class="btn secondary" onclick="go('withdrawals')">Review Withdrawals</button>
+          <button class="btn secondary" onclick="go('ads')">Manage Ads</button>
+          <button class="btn secondary" onclick="go('settings')">App Settings</button>
+        </div>
+      </div>
+    </section>
 
-                // টেবিলগুলোর ফাকা স্টেট ইনিশিয়ালাইজেশন
-                renderEmpty('users-table-body', 'কোনো ইউজার পাওয়া যায়নি।', 6);
-                renderEmpty('watch-ads-table-body', 'কোনো ওয়াচ অ্যাড নেই।', 5);
-                renderEmpty('referrals-table-body', 'কোনো রেফারেল রেকর্ড নেই।', 4);
-                renderEmpty('withdrawals-table-body', 'কোনো উইথড্রয়াল রিকোয়েস্ট নেই।', 6);
-                renderEmpty('tasks-table-body', 'কোনো টাস্ক সাবমিশন নেই।', 5);
-                renderEmpty('finance-table-body', 'কোনো ট্রানজাকশন নেই।', 5);
-                renderEmpty('leaderboard-table-body', 'লিডারবোর্ড খালি।', 4);
-                renderEmpty('support-table-body', 'কোনো সাপোর্ট টিকিট নেই।', 5);
-                renderEmpty('audit-logs-table-body', 'কোনো অডিট লগ নেই।', 4);
+    <!-- USERS -->
+    <section class="page" id="page-users">
+      <div class="panel">
+        <div class="panel-head">
+          <div><h3>User Management</h3><p>Search, inspect and moderate accounts.</p></div>
+          <button class="btn secondary" onclick="loadUsers()">↻ Reload</button>
+        </div>
+        <div class="field" style="max-width:340px">
+          <input id="userSearch" placeholder="🔍 Search by name, username or Telegram ID..." oninput="renderUsers()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Telegram ID</th><th>Name</th><th>Balance</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="usersTable"><tr><td colspan="5" class="empty"><span class="big">👥</span>Loading users…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-            } catch (error) {
-                console.error('ডাটা লোড করতে সমস্যা:', error);
-            }
-        }
+    <!-- ADS -->
+    <section class="page" id="page-ads">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Create Advertisement</h3><p>Add a watch ad to the User Mini App.</p></div></div>
+        <form onsubmit="createAd(event)">
+          <div class="grid2">
+            <div class="field"><label>Title</label><input id="adTitle" required maxlength="120" placeholder="Watch sponsored video"></div>
+            <div class="field"><label>URL</label><input id="adUrl" type="url" required placeholder="https://example.com"></div>
+            <div class="field"><label>Reward</label><input id="adReward" type="number" min="0.01" max="1000" step="0.01" required placeholder="5"></div>
+            <div class="field"><label>Duration (sec)</label><input id="adDuration" type="number" min="20" max="300" value="30" required></div>
+          </div>
+          <button class="btn" type="submit">＋ Create Advertisement</button>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>Advertisement List</h3><p>Existing ads stored in Firestore.</p></div><button class="btn secondary" onclick="loadAds()">↻ Reload</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Title</th><th>Reward</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="adsTable"><tr><td colspan="5" class="empty"><span class="big">▶</span>Loading ads…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-        function renderEmpty(elementId, msg, colSpan) {
-            const el = document.getElementById(elementId);
-            if (el) el.innerHTML = `<tr><td colspan="${colSpan}" class="loading">${msg}</td></tr>`;
-        }
+    <!-- TASKS -->
+    <section class="page" id="page-tasks">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Create Task</h3><p>Add a task users must complete.</p></div></div>
+        <form onsubmit="createTask(event)">
+          <div class="grid2">
+            <div class="field"><label>Title</label><input id="taskTitle" required maxlength="120" placeholder="Follow our page"></div>
+            <div class="field"><label>URL (optional)</label><input id="taskUrl" type="url" placeholder="https://example.com"></div>
+            <div class="field"><label>Reward</label><input id="taskReward" type="number" min="0" step="0.01" required placeholder="10"></div>
+          </div>
+          <label class="check-row"><input type="checkbox" id="taskProof"> Require proof submission</label>
+          <button class="btn" type="submit">＋ Create Task</button>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>Task List</h3><p>Manage available tasks.</p></div><button class="btn secondary" onclick="loadTasks()">↻ Reload</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Task</th><th>Reward</th><th>Proof</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="tasksTable"><tr><td colspan="5" class="empty"><span class="big">✓</span>Loading tasks…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-        // ফর্ম সাবমিশন ও অ্যাকশন ফাংশনসমূহ
-        function saveAdsConfig() { alert('বিজ্ঞাপন সেটিংস সফলভাবে সংরক্ষিত হয়েছে।'); }
-        function saveDailyBonus() { alert('ডেইলি বোনাস সফলভাবে আপডেট করা হয়েছে।'); }
-        function sendBroadcast() { 
-            const msg = document.getElementById('broadcast-message').value;
-            if(!msg) return alert('অনুগ্রহ করে বার্তা লিখুন।');
-            alert('ব্রডকাস্ট সফলভাবে পাঠানো হয়েছে।');
-            document.getElementById('broadcast-message').value = '';
-        }
-        function saveAppContent() { alert('অ্যাপ কন্টেন্ট আপডেট করা হয়েছে।'); }
-        function saveGlobalSettings() { alert('গ্লোবাল সেটিংস সংরক্ষিত হয়েছে।'); }
-        function downloadBackup() { alert('ব্যাকআপ ফাইল তৈরি হচ্ছে...'); }
+    <!-- WITHDRAWALS -->
+    <section class="page" id="page-withdrawals">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Withdrawal Requests</h3><p>Approve or reject pending payouts.</p></div><button class="btn secondary" onclick="loadWithdrawals()">↻ Reload</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User ID</th><th>Amount</th><th>Method</th><th>Account</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="withdrawalsTable"><tr><td colspan="6" class="empty"><span class="big">↗</span>Loading withdrawals…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-        window.onload = loadAdminData;
-    </script>
+    <!-- AD PLACEMENTS -->
+    <section class="page" id="page-placements">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Ad Placement Manager</h3><p>Manage HTML ad slots in the User Mini App.</p></div><button class="btn secondary" onclick="loadPlacements()">↻ Reload</button></div>
+        <div class="notice warn">Only paste ad code from a provider you trust. HTML is stored in Firestore and served to the User Mini App. Never paste secret keys here.</div>
+        <div class="grid2">
+          <div class="field"><label>Slot</label>
+            <select id="placementSlot" onchange="showPlacement()">
+              <option value="top">Top Banner</option>
+              <option value="middle">Middle Banner</option>
+              <option value="bottom">Bottom Banner</option>
+              <option value="gate">Gate Advertisement</option>
+            </select>
+          </div>
+          <div class="field"><label>Label</label><input id="placementLabel" maxlength="60" placeholder="Advertisement"></div>
+        </div>
+        <div class="field"><label>HTML / Script</label><textarea id="placementHtml" style="min-height:180px;font-family:monospace"></textarea></div>
+        <label class="check-row"><input type="checkbox" id="placementEnabled"> Enable this placement</label>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn" onclick="savePlacement()">Save</button>
+          <button class="btn secondary" onclick="clearPlacement()">Clear Form</button>
+          <button class="btn red" onclick="deletePlacement()">Delete</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAYMENTS -->
+    <section class="page" id="page-payments">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Payment Methods</h3><p>Enable or disable withdrawal methods.</p></div><button class="btn secondary" onclick="loadPayments()">↻ Reload</button></div>
+        <div class="payment-card">
+          <div><strong>🟣 bKash</strong><small>Bangladesh mobile banking</small></div>
+          <label class="switch"><input type="checkbox" id="payBkash"><span class="slider"></span></label>
+        </div>
+        <div class="payment-card">
+          <div><strong>🟠 Nagad</strong><small>Bangladesh mobile banking</small></div>
+          <label class="switch"><input type="checkbox" id="payNagad"><span class="slider"></span></label>
+        </div>
+        <div class="payment-card">
+          <div><strong>🟡 Binance USDT</strong><small>USDT withdrawal method</small></div>
+          <label class="switch"><input type="checkbox" id="payUsdt"><span class="slider"></span></label>
+        </div>
+        <button class="btn" style="margin-top:8px" onclick="savePayments()">Save Payment Settings</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Application Settings</h3><p>Change general application configuration.</p></div><button class="btn secondary" onclick="loadSettings()">↻ Reload</button></div>
+        <form onsubmit="saveSettings(event)">
+          <div class="field"><label>Application Name</label><input id="settingAppName" maxlength="60" required></div>
+          <div class="field"><label>Minimum Withdrawal</label><input id="settingMinWithdraw" type="number" min="1" max="1000000" required></div>
+          <div class="field"><label>Support URL</label><input id="settingSupport" type="url" placeholder="https://t.me/support"></div>
+          <div class="field"><label>Maintenance Message</label><textarea id="settingMaintenanceMessage" maxlength="500"></textarea></div>
+          <label class="check-row"><input type="checkbox" id="settingMaintenance"> Enable Maintenance Mode</label>
+          <button class="btn" type="submit">Save Settings</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- BACKUP -->
+    <section class="page" id="page-backup">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Database Backup</h3><p>Export your Firestore data to a JSON file.</p></div></div>
+        <div class="notice">Backup includes users, ads, ad claims, tasks, submissions, referrals, transactions, withdrawals, ad placements, and app config.</div>
+        <button class="btn" onclick="downloadBackup()">⬇ Download Backup</button>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>Restore Database</h3><p>Import a previously exported backup.</p></div></div>
+        <div class="notice warn">Restore uses MERGE mode. Existing docs updated/supplemented; docs not in backup are NOT deleted. Download a fresh backup first.</div>
+        <div class="field"><label>Backup JSON File</label><input type="file" id="restoreFile" accept=".json,application/json"></div>
+        <button class="btn red" onclick="restoreBackup()">Restore Backup</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Details</h3>
+      <button class="icon-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+
+// ============================================================
+// INIT + AUTH
+// ============================================================
+const tg = window.Telegram?.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
+const initData = tg?.initData || '';
+
+const API_HEADERS = {
+  'Content-Type': 'application/json',
+  ...(initData ? { Authorization: 'tma ' + initData } : {})
+};
+
+const $ = id => document.getElementById(id);
+let currentPage = 'dashboard';
+let cachedUsers = [];
+let cachedAds = [];
+let cachedTasks = [];
+let cachedWithdrawals = [];
+let placementData = {};
+
+function escapeHTML(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+function money(v){
+  const n = Number(v || 0);
+  return '৳' + n.toLocaleString('en-US',{maximumFractionDigits:2});
+}
+function toast(msg, kind){
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (kind ? ' ' + kind : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+async function api(url, opts = {}){
+  if (!initData) throw new Error('Open the Admin Panel from your Admin Bot.');
+  const res = await fetch(url, {
+    ...opts,
+    headers: { ...API_HEADERS, ...(opts.headers || {}) }
+  });
+  let data;
+  try { data = await res.json(); } catch { throw new Error('Invalid server response.'); }
+  if (!res.ok || data.success === false){
+    if (res.status === 401) throw new Error('Admin authentication failed. Reopen from the Admin Bot.');
+    if (res.status === 403) throw new Error(data.error || 'Admin access denied.');
+    throw new Error(data.error || 'Request failed.');
+  }
+  return data;
+}
+
+// ============================================================
+// THEME
+// ============================================================
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  $('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem('ew_admin_theme', t); } catch {}
+}
+window.toggleTheme = function(){
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+};
+(function initTheme(){
+  let t = 'light';
+  try { t = localStorage.getItem('ew_admin_theme') || 'light'; } catch {}
+  applyTheme(t);
+})();
+
+// ============================================================
+// MENU (three-dot)
+// ============================================================
+const SECTIONS = [
+  { group:'MAIN', id:'dashboard', icon:'▦', title:'Dashboard', sub:'Overview & stats' },
+  { group:'MAIN', id:'users', icon:'👥', title:'Users', sub:'Search & moderate' },
+  { group:'MAIN', id:'ads', icon:'▶', title:'Advertisements', sub:'Watch ads' },
+  { group:'MAIN', id:'tasks', icon:'✓', title:'Tasks', sub:'User tasks' },
+  { group:'MAIN', id:'withdrawals', icon:'↗', title:'Withdrawals', sub:'Approve payouts' },
+  { group:'MONETIZATION', id:'placements', icon:'▤', title:'Ad Placements', sub:'HTML slots' },
+  { group:'MONETIZATION', id:'payments', icon:'৳', title:'Payment Settings', sub:'bKash/Nagad/USDT' },
+  { group:'SYSTEM', id:'settings', icon:'⚙', title:'App Settings', sub:'General config' },
+  { group:'SYSTEM', id:'backup', icon:'▣', title:'Backup & Restore', sub:'Export / import' }
+];
+const pageInfo = Object.fromEntries(SECTIONS.map(s => [s.id, [s.title, s.sub]]));
+
+function renderMenu(filter = ''){
+  const list = $('menuList');
+  const q = filter.trim().toLowerCase();
+  const groups = {};
+  SECTIONS.forEach(s => {
+    if (q && !(s.title.toLowerCase().includes(q) || s.sub.toLowerCase().includes(q))) return;
+    (groups[s.group] = groups[s.group] || []).push(s);
+  });
+  let html = '';
+  for (const g of Object.keys(groups)){
+    html += `<div class="menu-section-label">${escapeHTML(g)}</div>`;
+    groups[g].forEach(s => {
+      const active = s.id === currentPage ? ' active' : '';
+      html += `<button class="menu-item${active}" onclick="go('${s.id}')">
+        <span class="ico">${s.icon}</span>
+        <span class="label">${escapeHTML(s.title)}<small>${escapeHTML(s.sub)}</small></span>
+      </button>`;
+    });
+  }
+  list.innerHTML = html || '<div class="empty" style="padding:20px">No sections match.</div>';
+}
+window.filterMenu = function(v){ renderMenu(v); };
+window.openMenu = function(){
+  $('menuOverlay').classList.add('show');
+  $('menuPanel').classList.add('show');
+  $('menuSearch').value = '';
+  renderMenu();
+};
+window.closeMenu = function(){
+  $('menuOverlay').classList.remove('show');
+  $('menuPanel').classList.remove('show');
+};
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+window.go = function(page){
+  if (!pageInfo[page]) return;
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(el =>
+    el.classList.toggle('active', el.id === 'page-' + page));
+  $('pageTitle').textContent = pageInfo[page][0];
+  $('pageSubtitle').textContent = pageInfo[page][1];
+  closeMenu();
+  renderMenu();
+  const loaders = {
+    dashboard: loadDashboard, users: loadUsers, ads: loadAds,
+    tasks: loadTasks, withdrawals: loadWithdrawals,
+    placements: loadPlacements, payments: loadPayments,
+    settings: loadSettings
+  };
+  if (loaders[page]) loaders[page]();
+};
+window.refreshCurrent = () => go(currentPage);
+window.showPage = window.go; // back-compat alias
+
+// ============================================================
+// MODAL
+// ============================================================
+window.openModal = function(title, bodyHtml){
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = bodyHtml;
+  $('modalOverlay').classList.add('show');
+};
+window.closeModal = function(){
+  $('modalOverlay').classList.remove('show');
+};
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard(){
+  try {
+    const r = await api('/api/admin/stats');
+    const d = r.data || {};
+    $('statUsers').textContent = Number(d.totalUsers || 0).toLocaleString();
+    $('statActive').textContent = Number(d.activeUsers || 0).toLocaleString();
+    $('statBalance').textContent = money(d.totalBalance);
+    $('statPending').textContent = Number(d.pendingWithdraws || 0).toLocaleString();
+    $('topStatus').textContent = 'ONLINE';
+    $('topStatus').style.color = 'var(--green)';
+    $('dashStatus').textContent = 'Connected';
+    $('dashStatus').className = 'badge green';
+  } catch (e){
+    $('topStatus').textContent = 'OFFLINE';
+    $('topStatus').style.color = 'var(--red)';
+    $('dashStatus').textContent = 'Connection error';
+    $('dashStatus').className = 'badge red';
+    toast(e.message, 'error');
+  }
+}
+
+// ============================================================
+// USERS
+// ============================================================
+window.loadUsers = async function(){
+  $('usersTable').innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  try {
+    const r = await api('/api/admin/users');
+    cachedUsers = r.data || [];
+    renderUsers();
+  } catch (e){
+    $('usersTable').innerHTML = `<tr><td colspan="5" class="empty">${escapeHTML(e.message)}</td></tr>`;
+    toast(e.message, 'error');
+  }
+};
+
+window.renderUsers = function(){
+  const q = ($('userSearch').value || '').trim().toLowerCase();
+  let rows = cachedUsers;
+  if (q){
+    rows = rows.filter(u =>
+      String(u.telegramId || u.id || '').toLowerCase().includes(q) ||
+      String(u.firstName || '').toLowerCase().includes(q) ||
+      String(u.lastName || '').toLowerCase().includes(q) ||
+      String(u.username || '').toLowerCase().includes(q)
+    );
+  }
+  if (!rows.length){
+    $('usersTable').innerHTML = '<tr><td colspan="5" class="empty"><span class="big">👥</span>No users match.</td></tr>';
+    return;
+  }
+  $('usersTable').innerHTML = rows.map(u => {
+    const id = String(u.telegramId || u.id || '');
+    const banned = u.status === 'banned';
+    return `<tr>
+      <td><code>${escapeHTML(id)}</code></td>
+      <td>
+        <strong>${escapeHTML(u.firstName || 'User')} ${escapeHTML(u.lastName || '')}</strong>
+        <div class="muted" style="font-size:11px">@${escapeHTML(u.username || 'no_username')}</div>
+      </td>
+      <td><strong>${money(u.balance)}</strong></td>
+      <td><span class="badge ${banned ? 'red' : 'green'}">${banned ? 'Banned' : 'Active'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small secondary" onclick="viewUser('${escapeHTML(id)}')">View</button>
+        <button class="btn small ${banned ? 'green' : 'red'}" onclick="changeUserStatus('${escapeHTML(id)}','${banned ? 'active' : 'banned'}')">${banned ? 'Unban' : 'Ban'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+};
+
+window.viewUser = function(id){
+  const u = cachedUsers.find(x => String(x.telegramId || x.id) === String(id));
+  if (!u) return;
+  const rows = Object.entries(u).filter(([k]) =>
+    !['password','token','secret'].includes(k.toLowerCase())
+  ).map(([k,v]) => {
+    const val = (v && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v ?? '—');
+    return `<div class="detail-row"><span class="k">${escapeHTML(k)}</span><span class="v">${escapeHTML(val)}</span></div>`;
+  }).join('');
+  openModal('User Details', rows);
+};
+
+window.changeUserStatus = async function(id, status){
+  if (!confirm(`Are you sure you want to ${status === 'banned' ? 'ban' : 'activate'} this user?`)) return;
+  try {
+    await api('/api/admin/ban', { method:'POST', body: JSON.stringify({ telegramId: id, status }) });
+    toast('User status updated.', 'success');
+    loadUsers();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// ADS
+// ============================================================
+window.loadAds = async function(){
+  $('adsTable').innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  try {
+    const r = await api('/api/admin/ads');
+    cachedAds = r.data || [];
+    if (!cachedAds.length){
+      $('adsTable').innerHTML = '<tr><td colspan="5" class="empty"><span class="big">▶</span>No advertisements yet.</td></tr>';
+      return;
+    }
+    $('adsTable').innerHTML = cachedAds.map(a => `<tr>
+      <td><strong>${escapeHTML(a.title)}</strong></td>
+      <td>${money(a.reward)}</td>
+      <td>${Number(a.duration || 0)}s</td>
+      <td><span class="badge ${a.status === 'active' ? 'green' : 'gray'}">${escapeHTML(a.status || 'unknown')}</span></td>
+      <td><button class="btn small red" onclick="deleteAd('${escapeHTML(a.id)}')">Delete</button></td>
+    </tr>`).join('');
+  } catch (e){
+    $('adsTable').innerHTML = `<tr><td colspan="5" class="empty">${escapeHTML(e.message)}</td></tr>`;
+    toast(e.message, 'error');
+  }
+};
+
+window.createAd = async function(ev){
+  ev.preventDefault();
+  const payload = {
+    title: $('adTitle').value.trim(),
+    url: $('adUrl').value.trim(),
+    reward: Number($('adReward').value),
+    duration: Number($('adDuration').value)
+  };
+  try {
+    await api('/api/admin/ads', { method:'POST', body: JSON.stringify(payload) });
+    ev.target.reset();
+    $('adDuration').value = 30;
+    toast('Advertisement created.', 'success');
+    loadAds();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.deleteAd = async function(id){
+  if (!confirm('Delete this advertisement?')) return;
+  try {
+    await api('/api/admin/ads/' + encodeURIComponent(id), { method:'DELETE' });
+    toast('Advertisement deleted.', 'success');
+    loadAds();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// TASKS
+// ============================================================
+window.loadTasks = async function(){
+  $('tasksTable').innerHTML = '<tr><td colspan="5" class="empty">Loading…</td></tr>';
+  try {
+    const r = await api('/api/admin/tasks');
+    cachedTasks = r.data || [];
+    if (!cachedTasks.length){
+      $('tasksTable').innerHTML = '<tr><td colspan="5" class="empty"><span class="big">✓</span>No tasks yet.</td></tr>';
+      return;
+    }
+    $('tasksTable').innerHTML = cachedTasks.map(t => `<tr>
+      <td><strong>${escapeHTML(t.title)}</strong></td>
+      <td>${money(t.reward)}</td>
+      <td>${t.requiresProof ? 'Required' : 'No'}</td>
+      <td><span class="badge ${t.status === 'active' ? 'green' : 'gray'}">${escapeHTML(t.status || 'unknown')}</span></td>
+      <td><button class="btn small red" onclick="deleteTask('${escapeHTML(t.id)}')">Delete</button></td>
+    </tr>`).join('');
+  } catch (e){
+    $('tasksTable').innerHTML = `<tr><td colspan="5" class="empty">${escapeHTML(e.message)}</td></tr>`;
+    toast(e.message, 'error');
+  }
+};
+
+window.createTask = async function(ev){
+  ev.preventDefault();
+  const payload = {
+    title: $('taskTitle').value.trim(),
+    url: $('taskUrl').value.trim(),
+    reward: Number($('taskReward').value),
+    requiresProof: $('taskProof').checked
+  };
+  try {
+    await api('/api/admin/tasks', { method:'POST', body: JSON.stringify(payload) });
+    ev.target.reset();
+    toast('Task created.', 'success');
+    loadTasks();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.deleteTask = async function(id){
+  if (!confirm('Delete this task?')) return;
+  try {
+    await api('/api/admin/tasks/' + encodeURIComponent(id), { method:'DELETE' });
+    toast('Task deleted.', 'success');
+    loadTasks();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// WITHDRAWALS
+// ============================================================
+window.loadWithdrawals = async function(){
+  $('withdrawalsTable').innerHTML = '<tr><td colspan="6" class="empty">Loading…</td></tr>';
+  try {
+    const r = await api('/api/admin/withdrawals');
+    cachedWithdrawals = r.data || [];
+    if (!cachedWithdrawals.length){
+      $('withdrawalsTable').innerHTML = '<tr><td colspan="6" class="empty"><span class="big">↗</span>No withdrawal requests yet.</td></tr>';
+      return;
+    }
+    $('withdrawalsTable').innerHTML = cachedWithdrawals.map(w => {
+      const pending = w.status === 'pending';
+      const badge = pending ? 'amber' : w.status === 'approved' ? 'green' : 'red';
+      return `<tr>
+        <td><code>${escapeHTML(w.telegramId || w.userId)}</code></td>
+        <td><strong>${money(w.amount)}</strong></td>
+        <td>${escapeHTML(w.method)}</td>
+        <td>${escapeHTML(w.account)}</td>
+        <td><span class="badge ${badge}">${escapeHTML(w.status)}</span></td>
+        <td>${pending
+          ? `<div style="display:flex;gap:5px;flex-wrap:wrap">
+               <button class="btn small green" onclick="processWithdrawal('${escapeHTML(w.id)}','approved')">Approve</button>
+               <button class="btn small red" onclick="processWithdrawal('${escapeHTML(w.id)}','rejected')">Reject</button>
+             </div>`
+          : '<span class="muted">Processed</span>'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e){
+    $('withdrawalsTable').innerHTML = `<tr><td colspan="6" class="empty">${escapeHTML(e.message)}</td></tr>`;
+    toast(e.message, 'error');
+  }
+};
+
+window.processWithdrawal = async function(id, status){
+  const act = status === 'approved' ? 'approve' : 'reject';
+  if (!confirm(`Are you sure you want to ${act} this withdrawal?`)) return;
+  try {
+    await api('/api/admin/withdrawals/' + encodeURIComponent(id), {
+      method:'POST', body: JSON.stringify({ status })
+    });
+    toast(`Withdrawal ${status}.`, 'success');
+    loadWithdrawals();
+    loadDashboard();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// AD PLACEMENTS
+// ============================================================
+window.loadPlacements = async function(){
+  try {
+    const r = await api('/api/admin/ad-placements');
+    placementData = r.data || {};
+    showPlacement();
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.showPlacement = function(){
+  const slot = $('placementSlot').value;
+  const d = placementData[slot] || {};
+  $('placementLabel').value = d.label || 'Advertisement';
+  $('placementHtml').value = d.html || '';
+  $('placementEnabled').checked = d.enabled === true;
+};
+
+window.savePlacement = async function(){
+  const slot = $('placementSlot').value;
+  const payload = {
+    label: $('placementLabel').value.trim() || 'Advertisement',
+    html: $('placementHtml').value,
+    enabled: $('placementEnabled').checked
+  };
+  if (payload.html.length > 50000){
+    toast('HTML must be ≤ 50 KB.', 'error'); return;
+  }
+  try {
+    await api('/api/admin/ad-placements/' + encodeURIComponent(slot), {
+      method:'PUT', body: JSON.stringify(payload)
+    });
+    placementData[slot] = { slot, ...payload };
+    toast('Placement saved.', 'success');
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.clearPlacement = function(){
+  if (!confirm('Clear the form? (Saved placement will not be deleted.)')) return;
+  $('placementLabel').value = '';
+  $('placementHtml').value = '';
+  $('placementEnabled').checked = false;
+};
+
+window.deletePlacement = async function(){
+  const slot = $('placementSlot').value;
+  if (!confirm('Permanently delete this placement?')) return;
+  try {
+    await api('/api/admin/ad-placements/' + encodeURIComponent(slot), { method:'DELETE' });
+    delete placementData[slot];
+    showPlacement();
+    toast('Placement deleted.', 'success');
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// PAYMENTS
+// ============================================================
+window.loadPayments = async function(){
+  try {
+    const r = await api('/api/admin/payment-settings');
+    const d = r.data || {};
+    $('payBkash').checked = d.bKash?.enabled === true;
+    $('payNagad').checked = d.Nagad?.enabled === true;
+    $('payUsdt').checked = d.USDT?.enabled === true;
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.savePayments = async function(){
+  const payload = {
+    bKash: { enabled: $('payBkash').checked },
+    Nagad: { enabled: $('payNagad').checked },
+    USDT:  { enabled: $('payUsdt').checked }
+  };
+  try {
+    await api('/api/admin/payment-settings', { method:'PUT', body: JSON.stringify(payload) });
+    toast('Payment settings saved.', 'success');
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// SETTINGS
+// ============================================================
+window.loadSettings = async function(){
+  try {
+    const r = await api('/api/admin/settings');
+    const d = r.data || {};
+    $('settingAppName').value = d.appName || 'EarnWallet';
+    $('settingMinWithdraw').value = Number(d.minWithdraw || 100);
+    $('settingSupport').value = d.supportUrl || '';
+    $('settingMaintenanceMessage').value = d.maintenanceMessage || '';
+    $('settingMaintenance').checked = d.maintenance === true;
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.saveSettings = async function(ev){
+  ev.preventDefault();
+  const payload = {
+    appName: $('settingAppName').value.trim(),
+    minWithdraw: Number($('settingMinWithdraw').value),
+    supportUrl: $('settingSupport').value.trim(),
+    maintenanceMessage: $('settingMaintenanceMessage').value.trim(),
+    maintenance: $('settingMaintenance').checked
+  };
+  if (!payload.appName || !Number.isFinite(payload.minWithdraw)){
+    toast('Please check the fields.', 'error'); return;
+  }
+  if (payload.maintenance && !confirm('Maintenance mode will block the User Mini App API. Enable?')) return;
+  try {
+    await api('/api/admin/settings', { method:'PUT', body: JSON.stringify(payload) });
+    toast('Settings saved.', 'success');
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+// ============================================================
+// BACKUP / RESTORE
+// ============================================================
+window.downloadBackup = async function(){
+  try {
+    if (!initData) throw new Error('Open from Admin Bot.');
+    toast('Creating backup…');
+    const res = await fetch('/api/admin/backup', { headers: { Authorization: 'tma ' + initData } });
+    if (!res.ok){
+      let err = {}; try { err = await res.json(); } catch {}
+      throw new Error(err.error || 'Backup failed.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'earnwallet-backup-' + Date.now() + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    toast('Backup download started.', 'success');
+  } catch (e){ toast(e.message, 'error'); }
+};
+
+window.restoreBackup = async function(){
+  const file = $('restoreFile').files[0];
+  if (!file){ toast('Select a JSON backup file.', 'error'); return; }
+  if (file.size > 9 * 1024 * 1024){ toast('File too large (max 9 MB).', 'error'); return; }
+  if (!confirm('Restore will MERGE backup into database. Existing docs may be updated. Continue?')) return;
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    if (backup.app !== 'EarnWallet' || backup.formatVersion !== 1 || !backup.collections){
+      throw new Error('Not a valid EarnWallet backup file.');
+    }
+    await api('/api/admin/restore', { method:'POST', body: JSON.stringify(backup) });
+    $('restoreFile').value = '';
+    toast('Restore completed.', 'success');
+    loadDashboard();
+  } catch (e){ toast(e.message || 'Restore failed.', 'error'); }
+};
+
+// ============================================================
+// STARTUP
+// ============================================================
+async function start(){
+  renderMenu();
+  if (!initData){
+    $('topStatus').textContent = 'NOT AUTHENTICATED';
+    $('topStatus').style.color = 'var(--red)';
+    $('dashStatus').textContent = 'Open from Admin Bot';
+    $('dashStatus').className = 'badge red';
+    toast('Open the Admin Panel from your Admin Bot.', 'error');
+    return;
+  }
+  try { await loadDashboard(); } catch (e){ toast(e.message, 'error'); }
+}
+start();
+
+})();
+</script>
+
 </body>
 </html>
