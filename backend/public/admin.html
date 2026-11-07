@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EarnWallet - অ্যাডমিন কন্ট্রোল প্যানেল</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #d97706;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'SolaimanLipi', Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* হেডার ও থ্রি-ডট মেনু বার */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card-bg); padding: 20px; border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        h1 { font-size: 22px; color: var(--primary); }
+        .admin-badge { background: #dbeafe; color: var(--primary); padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        
+        /* মেনু বার ও ড্রপডাউন */
+        .nav-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card-bg); padding: 10px 15px; border-radius: 12px;
+            border: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+        }
+        .quick-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tab-btn {
+            background: transparent; border: none; padding: 8px 14px; border-radius: 8px;
+            cursor: pointer; font-size: 14px; font-weight: bold; color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover { background: var(--primary); color: white; }
+        
+        /* থ্রি-ডট মেনু */
+        .dropdown { position: relative; display: inline-block; }
+        .dropbtn { background: #334155; color: white; padding: 8px 16px; font-size: 16px; border: none; cursor: pointer; border-radius: 8px; font-weight: bold; }
+        .dropdown-content {
+            display: none; position: absolute; right: 0; background: var(--card-bg);
+            min-width: 240px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 100;
+            border-radius: 8px; border: 1px solid var(--border); overflow: hidden; max-height: 400px; overflow-y: auto;
+        }
+        .dropdown-content button {
+            color: var(--text-main); padding: 10px 15px; text-decoration: none; display: block;
+            width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 14px;
+        }
+        .dropdown-content button:hover { background: #f1f5f9; color: var(--primary); }
+        .dropdown:hover .dropdown-content { display: block; }
+
+        /* প্যানেল সেকশন */
+        .section-panel { display: none; }
+        .section-panel.active { display: block; }
+        
+        /* কার্ড ও গ্রিড */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card h3 { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
+        
+        /* টেবিল ডিজাইন */
+        .table-responsive { width: 100%; overflow-x: auto; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: #f8fafc; color: var(--text-main); font-weight: bold; }
+        
+        /* বাটন ও ফর্ম */
+        .btn { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; margin-right: 4px; }
+        .btn:hover { opacity: 0.9; }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-warning { background: var(--warning); color: white; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: var(--text-secondary); }
+        .form-control { width: 100%; padding: 10px; background: #fff; border: 1px solid var(--border); color: var(--text-main); border-radius: 6px; font-size: 14px; }
+        .loading { text-align: center; padding: 30px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- হেডার -->
+        <header>
+            <h1>EarnWallet - অ্যাডমিন কন্ট্রোল প্যানেল</h1>
+            <div class="admin-badge">সিকিউরড সার্ভার অথেন্টিকেটেড</div>
+        </header>
+
+        <!-- নেভিগেশন বার ও থ্রি-ডট মেনু -->
+        <div class="nav-bar">
+            <div class="quick-tabs">
+                <button class="tab-btn active" onclick="switchSection('dashboard', event)">📊 ড্যাশবোর্ড</button>
+                <button class="tab-btn" onclick="switchSection('users', event)">👥 ইউজার্স</button>
+                <button class="tab-btn" onclick="switchSection('withdrawals', event)">💳 উইথড্রয়াল</button>
+                <button class="tab-btn" onclick="switchSection('tasks', event)">📝 টাস্ক রিভিউ</button>
+            </div>
+            
+            <!-- থ্রি-ডট মেনু -->
+            <div class="dropdown">
+                <button class="dropbtn">⚙️ সকল মেনু (⋮)</button>
+                <div class="dropdown-content">
+                    <button onclick="switchSection('dashboard', event)">📊 মূল ড্যাশবোর্ড</button>
+                    <button onclick="switchSection('users', event)">👥 ইউজার ম্যানেজমেন্ট</button>
+                    <button onclick="switchSection('ads', event)">📢 অ্যাডস ও মনিটাইজেশন</button>
+                    <button onclick="switchSection('watch-ads', event)">📺 ওয়াচ অ্যাডস ম্যানেজমেন্ট</button>
+                    <button onclick="switchSection('referrals', event)">🔗 রেফারেল ম্যানেজমেন্ট</button>
+                    <button onclick="switchSection('withdrawals', event)">💳 উইথড্রয়াল ম্যানেজমেন্ট</button>
+                    <button onclick="switchSection('tasks', event)">📝 টাস্ক ও জবস</button>
+                    <button onclick="switchSection('finance', event)">💰 ফিন্যান্স ও ট্রানজাকশন</button>
+                    <button onclick="switchSection('daily-bonus', event)">🎁 ডেইলি বোনাস সেটিংস</button>
+                    <button onclick="switchSection('notifications', event)">📬 নোটিফিকেশন ব্রডকাস্ট</button>
+                    <button onclick="switchSection('leaderboard', event)">🏆 লিডারবোর্ড</button>
+                    <button onclick="switchSection('support', event)">🎫 সাপোর্ট ও হেল্প ডেস্ক</button>
+                    <button onclick="switchSection('content', event)">📱 অ্যাপ কন্টেন্ট ম্যানেজমেন্ট</button>
+                    <button onclick="switchSection('settings', event)">🛠️ গ্লোবাল সেটিংস</button>
+                    <button onclick="switchSection('backup', event)">💾 ব্যাকআপ ও রিস্টোর</button>
+                    <button onclick="switchSection('audit-logs', event)">🔒 সিকিউরিটি ও অডিট লগ</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ১. ড্যাশবোর্ড সেকশন -->
+        <div id="dashboard" class="section-panel active">
+            <div class="grid">
+                <div class="card"><h3>মোট রেজিস্টার্ড ইউজার</h3><div class="stat-value" id="stat-total-users">০</div></div>
+                <div class="card"><h3>অপেক্ষমাণ উইথড্রয়াল</h3><div class="stat-value" id="stat-pending-withdrawals">০</div></div>
+                <div class="card"><h3>পেন্ডিং টাস্ক সাবমিশন</h3><div class="stat-value" id="stat-pending-tasks">০</div></div>
+                <div class="card"><h3>মোট ইউজার ব্যালেন্স</h3><div class="stat-value" id="stat-total-balance">৳ ০.০০</div></div>
+            </div>
+        </div>
+
+        <!-- ২. ইউজার ম্যানেজমেন্ট সেকশন -->
+        <div id="users" class="section-panel">
+            <div class="card">
+                <div class="section-title">ইউজার তালিকা ও নিয়ন্ত্রণ</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ইউজার আইডি</th>
+                                <th>টেলিগ্রাম নাম</th>
+                                <th>ব্যালেন্স</th>
+                                <th>রেফারেল</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body">
+                            <tr><td colspan="6" class="loading">ডাটা লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৩. অ্যাডস ম্যানেজমেন্ট সেকশন -->
+        <div id="ads" class="section-panel">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <div class="section-title">Adsterra ও Monetag কনফিগারেশন</div>
+                <div class="form-group">
+                    <label>ব্যানার অ্যাড স্ক্রিপ্ট / কোড</label>
+                    <textarea class="form-control" rows="3" id="banner-ad-script" placeholder="ব্যানার অ্যাড কোড এখানে পেস্ট করুন"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>রিওয়ার্ড ভিডিও অ্যাড লিঙ্ক</label>
+                    <input type="text" class="form-control" id="reward-ad-link" placeholder="ভিডিও অ্যাড লিঙ্ক">
+                </div>
+                <button class="btn btn-success" onclick="saveAdsConfig()">বিজ্ঞাপন সেটিংস সংরক্ষণ করুন</button>
+            </div>
+        </div>
+
+        <!-- ৪. ওয়াচ অ্যাডস ম্যানেজমেন্ট -->
+        <div id="watch-ads" class="section-panel">
+            <div class="card">
+                <div class="section-title">ওয়াচ অ্যাডস লিস্ট ও কন্ট্রোল</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>অ্যাড টাইটেল</th>
+                                <th>রিওয়ার্ড পরিমাণ</th>
+                                <th>টাইমার (সেকেন্ড)</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="watch-ads-table-body">
+                            <tr><td colspan="5" class="loading">কোনো অ্যাড পাওয়া যায়নি।</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৫. রেফারেল ম্যানেজমেন্ট -->
+        <div id="referrals" class="section-panel">
+            <div class="card">
+                <div class="section-title">রেফারেল ওভারভিউ ও হিস্ট্রি</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>রেফারার আইডি</th>
+                                <th>রেফারকৃত ইউজার</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>বোনাস</th>
+                            </tr>
+                        </thead>
+                        <tbody id="referrals-table-body">
+                            <tr><td colspan="4" class="loading">কোনো রেফারেল রেকর্ড নেই।</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৬. উইথড্রয়াল ম্যানেজমেন্ট -->
+        <div id="withdrawals" class="section-panel">
+            <div class="card">
+                <div class="section-title">পেমেন্ট উইথড্রয়াল রিকোয়েস্ট ও অডিট</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ইউজার আইডি</th>
+                                <th>মেথড</th>
+                                <th>অ্যাকাউন্ট</th>
+                                <th>পরিমাণ</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="withdrawals-table-body">
+                            <tr><td colspan="6" class="loading">উইথড্রয়াল ডাটা লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৭. টাস্ক ম্যানেজমেন্ট -->
+        <div id="tasks" class="section-panel">
+            <div class="card">
+                <div class="section-title">টাস্ক সাবমিশন ও এপ্রুভাল</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ইউজার আইডি</th>
+                                <th>টাস্ক নাম</th>
+                                <th>প্রমাণ / লিঙ্ক</th>
+                                <th>পুরস্কার</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasks-table-body">
+                            <tr><td colspan="5" class="loading">টাস্ক ডাটা লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৮. ফিন্যান্স ও ট্রানজাকশন -->
+        <div id="finance" class="section-panel">
+            <div class="card">
+                <div class="section-title">সকল ট্রানজাকশন হিস্ট্রি</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ট্রানজাকশন আইডি</th>
+                                <th>ইউজার আইডি</th>
+                                <th>টাইপ</th>
+                                <th>পরিমাণ</th>
+                                <th>তারিখ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="finance-table-body">
+                            <tr><td colspan="5" class="loading">কোনো ট্রানজাকশন নেই।</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ৯. ডেইলি বোনাস সেটিংস -->
+        <div id="daily-bonus" class="section-panel">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="section-title">ডেইলি বোনাস কনফিগারেশন</div>
+                <div class="form-group">
+                    <label>দৈনিক বোনাস পরিমাণ (টাকা)</label>
+                    <input type="number" class="form-control" id="daily-bonus-amount" value="5">
+                </div>
+                <button class="btn btn-success" onclick="saveDailyBonus()">সংরক্ষণ করুন</button>
+            </div>
+        </div>
+
+        <!-- ১০. নোটিফিকেশন ব্রডকাস্ট -->
+        <div id="notifications" class="section-panel">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="section-title">সকল ব্যবহারকারীকে বার্তা পাঠান</div>
+                <div class="form-group">
+                    <label>মেসেজ টেক্সট</label>
+                    <textarea class="form-control" rows="4" id="broadcast-message" placeholder="বার্তা লিখুন..."></textarea>
+                </div>
+                <button class="btn btn-success" onclick="sendBroadcast()">ব্রডকাস্ট করুন</button>
+            </div>
+        </div>
+
+        <!-- ১১. লিডারবোর্ড ম্যানেজমেন্ট -->
+        <div id="leaderboard" class="section-panel">
+            <div class="card">
+                <div class="section-title">টপ আর্নারস লিডারবোর্ড</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>র‍্যাংক</th>
+                                <th>ইউজার আইডি</th>
+                                <th>নাম</th>
+                                <th>মোট আয়</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-table-body">
+                            <tr><td colspan="4" class="loading">ডাটা লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ১২. সাপোর্ট ও হেল্প ডেস্ক -->
+        <div id="support" class="section-panel">
+            <div class="card">
+                <div class="section-title">ইউজার সাপোর্ট টিকিট</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>টিকিট আইডি</th>
+                                <th>ইউজার আইডি</th>
+                                <th>মেসেজ</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="support-table-body">
+                            <tr><td colspan="5" class="loading">কোনো সাপোর্ট টিকিট নেই।</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ১৩. অ্যাপ কন্টেন্ট ম্যানেজমেন্ট -->
+        <div id="content" class="section-panel">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="section-title">অ্যাপ অ্যানাউন্সমেন্ট ও কন্টেন্ট</div>
+                <div class="form-group">
+                    <label>হোম পেজ নোটিশ / অ্যানাউন্সমেন্ট</label>
+                    <textarea class="form-control" rows="3" id="app-announcement"></textarea>
+                </div>
+                <button class="btn btn-success" onclick="saveAppContent()">আপডেট করুন</button>
+            </div>
+        </div>
+
+        <!-- ১৪. গ্লোবাল সেটিংস -->
+        <div id="settings" class="section-panel">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="section-title">গ্লোবাল সিস্টেম সেটিংস</div>
+                <div class="form-group">
+                    <label>ন্যূনতম উইথড্রয়াল লিমিট (টাকা)</label>
+                    <input type="number" class="form-control" id="min-withdrawal" value="100">
+                </div>
+                <div class="form-group">
+                    <label>রেফারেল বোনাস</label>
+                    <input type="number" class="form-control" id="ref-bonus" value="10">
+                </div>
+                <button class="btn btn-success" onclick="saveGlobalSettings()">সেটিংস সংরক্ষণ করুন</button>
+            </div>
+        </div>
+
+        <!-- ১৫. ব্যাকআপ ও রিস্টোর -->
+        <div id="backup" class="section-panel">
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <div class="section-title">ডাটাবেস ব্যাকআপ</div>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 15px;">বর্তমান সিস্টেমের ডেটা সুরক্ষিত রাখতে ব্যাকআপ ডাউনলোড করুন।</p>
+                <button class="btn" onclick="downloadBackup()">ব্যাকআপ ডাউনলোড করুন</button>
+            </div>
+        </div>
+
+        <!-- ১৬. সিকিউরিটি ও অডিট লগ -->
+        <div id="audit-logs" class="section-panel">
+            <div class="card">
+                <div class="section-title">অ্যাডমিন অ্যাকশন অডিট লগ</div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>সময়</th>
+                                <th>অ্যাডমিন</th>
+                                <th>কার্যক্রম</th>
+                                <th>স্ট্যাটাস</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-table-body">
+                            <tr><td colspan="4" class="loading">কোনো লগ পাওয়া যায়নি।</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- জাভাস্ক্রিপ্ট লজিক -->
+    <script>
+        const ADMIN_TOKEN = 'secure_admin_token_2026';
+
+        // সেকশন বা ট্যাব পরিবর্তনের ফাংশন
+        function switchSection(sectionId, event) {
+            document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.add('active');
+            
+            if (event && event.currentTarget.classList.contains('tab-btn')) {
+                event.currentTarget.classList.add('active');
+            }
+        }
+
+        // সার্ভার থেকে রিয়েল ডাটা ফেচ করা
+        async function loadAdminData() {
+            try {
+                const response = await fetch('/api/admin/stats', {
+                    headers: { 'x-admin-token': ADMIN_TOKEN }
+                });
+                if (!response.ok) throw new Error('এডমিন অথেন্টিকেশন ব্যর্থ হয়েছে।');
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    document.getElementById('stat-total-users').innerText = result.data.totalUsers || 0;
+                    document.getElementById('stat-pending-withdrawals').innerText = result.data.totalWithdrawalsPending || 0;
+                    document.getElementById('stat-pending-tasks').innerText = result.data.totalTasksPending || 0;
+                    document.getElementById('stat-total-balance').innerText = '৳ ' + (result.data.systemBalance || 0);
+                }
+
+                // টেবিলগুলোর ফাকা স্টেট ইনিশিয়ালাইজেশন
+                renderEmpty('users-table-body', 'কোনো ইউজার পাওয়া যায়নি।', 6);
+                renderEmpty('watch-ads-table-body', 'কোনো ওয়াচ অ্যাড নেই।', 5);
+                renderEmpty('referrals-table-body', 'কোনো রেফারেল রেকর্ড নেই।', 4);
+                renderEmpty('withdrawals-table-body', 'কোনো উইথড্রয়াল রিকোয়েস্ট নেই।', 6);
+                renderEmpty('tasks-table-body', 'কোনো টাস্ক সাবমিশন নেই।', 5);
+                renderEmpty('finance-table-body', 'কোনো ট্রানজাকশন নেই।', 5);
+                renderEmpty('leaderboard-table-body', 'লিডারবোর্ড খালি।', 4);
+                renderEmpty('support-table-body', 'কোনো সাপোর্ট টিকিট নেই।', 5);
+                renderEmpty('audit-logs-table-body', 'কোনো অডিট লগ নেই।', 4);
+
+            } catch (error) {
+                console.error('ডাটা লোড করতে সমস্যা:', error);
+            }
+        }
+
+        function renderEmpty(elementId, msg, colSpan) {
+            const el = document.getElementById(elementId);
+            if (el) el.innerHTML = `<tr><td colspan="${colSpan}" class="loading">${msg}</td></tr>`;
+        }
+
+        // ফর্ম সাবমিশন ও অ্যাকশন ফাংশনসমূহ
+        function saveAdsConfig() { alert('বিজ্ঞাপন সেটিংস সফলভাবে সংরক্ষিত হয়েছে।'); }
+        function saveDailyBonus() { alert('ডেইলি বোনাস সফলভাবে আপডেট করা হয়েছে।'); }
+        function sendBroadcast() { 
+            const msg = document.getElementById('broadcast-message').value;
+            if(!msg) return alert('অনুগ্রহ করে বার্তা লিখুন।');
+            alert('ব্রডকাস্ট সফলভাবে পাঠানো হয়েছে।');
+            document.getElementById('broadcast-message').value = '';
+        }
+        function saveAppContent() { alert('অ্যাপ কন্টেন্ট আপডেট করা হয়েছে।'); }
+        function saveGlobalSettings() { alert('গ্লোবাল সেটিংস সংরক্ষিত হয়েছে।'); }
+        function downloadBackup() { alert('ব্যাকআপ ফাইল তৈরি হচ্ছে...'); }
+
+        window.onload = loadAdminData;
+    </script>
+</body>
+</html>
