@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080d19"><meta name="color-scheme" content="dark">
+  <title>EarnWallet | Tasks & Rewards</title>
+  <link rel="stylesheet" href="/style.css?v=8">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    window.EW_AD_LINK = 'https://auctionr.org/4/dbdbab1f1b496a0618bffd138f62f643';
+    window.openSponsoredLink = function () {
+      const url = window.EW_AD_LINK;
+      if (!url) return;
+      if (window.Telegram?.WebApp?.openLink) window.Telegram.WebApp.openLink(url);
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    };
+  </script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark">E</div>
+      <div class="brand-copy"><b>EarnWallet</b><small>TASKS &amp; REWARDS</small></div>
+      <div class="topbar-actions">
+        <button id="refreshBtn" class="icon-btn" aria-label="Refresh" title="Refresh">↻</button>
+        <button id="menuToggle" class="icon-btn menu-toggle" aria-label="Open menu" aria-expanded="false">⋮</button>
+      </div>
+    </header>
+    <div class="menu-backdrop hidden" id="menuBackdrop"></div>
+    <aside class="more-menu hidden" id="moreMenu" aria-label="More sections">
+      <div class="menu-heading">Explore EarnWallet</div>
+      <button class="menu-link" data-page="how">ⓘ &nbsp; How it works</button>
+      <button class="menu-link" data-page="notifications">♢ &nbsp; Notifications</button>
+      <button class="menu-link" data-page="history">↗ &nbsp; Transaction history</button>
+      <button class="menu-link" data-page="referral">♧ &nbsp; Referral history</button>
+      <button class="menu-link" data-page="leaderboard">♕ &nbsp; Leaderboard</button>
+      <button class="menu-link" data-page="daily">✦ &nbsp; Daily bonus</button>
+      <button class="menu-link" data-page="support">✉ &nbsp; Support</button>
+      <button class="menu-link" data-page="faq">? &nbsp; FAQ &amp; Rules</button>
+      <button class="menu-link" data-page="profile">◉ &nbsp; Profile</button>
+    </aside>
+    <main id="view" class="view"><div class="skeleton"></div></main>
+    <nav class="bottom-nav" id="bottomNav" aria-label="Main navigation">
+      <button data-page="home" class="nav-item active"><span>⌂</span><small>Home</small></button>
+      <button data-page="ads" class="nav-item"><span>▶</span><small>Watch Ads</small></button>
+      <button data-page="tasks" class="nav-item"><span>☷</span><small>Tasks</small></button>
+      <button data-page="referral" class="nav-item"><span>♧</span><small>Invite</small></button>
+      <button data-page="wallet" class="nav-item"><span>▣</span><small>Wallet</small></button>
+    </nav>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js?v=8"></script>
+</body></html>
