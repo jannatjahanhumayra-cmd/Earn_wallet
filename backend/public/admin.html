@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<title>EarnWallet Admin Panel</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg-deep: #050505; --bg-primary: #0a0a0a; --bg-secondary: #111111;
+  --bg-card: #161616; --bg-elevated: #1c1c1c; --bg-hover: #222222;
+  --border-subtle: #1f1f1f; --border-default: #2a2a2a; --border-focus: #3a3a3a;
+  --text-primary: #ffffff; --text-secondary: #a0a0a0; --text-muted: #666666;
+  --accent: #ff7a45; --accent-soft: rgba(255,122,69,0.12); --accent-glow: rgba(255,122,69,0.35);
+  --success: #00d084; --success-soft: rgba(0,208,132,0.12);
+  --error: #ef4444; --error-soft: rgba(239,68,68,0.12);
+  --warning: #fbbf24; --warning-soft: rgba(251,191,36,0.12);
+  --info: #3b82f6; --info-soft: rgba(59,130,246,0.12);
+  --gold: #f59e0b;
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --radius: 12px; --radius-lg: 16px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{font-family:"Inter",-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg-primary);color:var(--text-primary);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:280px;background:var(--bg-secondary);border-right:1px solid var(--border-subtle);position:fixed;left:0;top:0;bottom:0;z-index:100;overflow-y:auto;padding:20px 0;transition:transform .3s ease}
+.sidebar-brand{padding:0 20px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-subtle);margin-bottom:12px}
+.sidebar-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ff5722);display:grid;place-items:center;font-weight:800;font-size:20px;color:white;box-shadow:0 4px 16px var(--accent-glow)}
+.sidebar-brand h1{font-size:17px;font-weight:700}
+.sidebar-brand small{font-size:10px;color:var(--text-muted);letter-spacing:1px;font-weight:600}
+
+.sidebar-section{padding:8px 12px}
+.sidebar-label{font-size:10px;color:var(--text-muted);letter-spacing:1.2px;font-weight:700;text-transform:uppercase;padding:10px 10px 6px}
+.sidebar-item{width:100%;display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;background:transparent;border:none;color:var(--text-secondary);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:.15s;text-align:left;margin-bottom:2px}
+.sidebar-item:hover{background:var(--bg-elevated);color:var(--text-primary)}
+.sidebar-item.active{background:var(--accent-soft);color:var(--accent);border:1px solid rgba(255,122,69,0.2)}
+.sidebar-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sidebar-badge{margin-left:auto;background:var(--error);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px}
+
+.main{flex:1;margin-left:280px;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(10,10,10,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-subtle);padding:14px 24px;display:flex;align-items:center;justify-content:space-between}
+.topbar h2{font-size:18px;font-weight:700}
+.topbar-actions{display:flex;gap:10px;align-items:center}
+.topbar-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--success);background:var(--success-soft);padding:5px 12px;border-radius:999px;border:1px solid rgba(0,208,132,0.2)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.content{padding:24px;max-width:1400px}
+
+/* Mobile */
+.mobile-toggle{display:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-card);color:var(--text-primary);place-items:center;cursor:pointer;font-size:18px}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99;backdrop-filter:blur(2px)}
+
+/* Stats Grid */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:22px 20px;transition:.15s;position:relative;overflow:hidden}
+.stat-card:hover{border-color:var(--border-default);transform:translateY(-2px)}
+.stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#ff5722);opacity:0;transition:.2s}
+.stat-card:hover::before{opacity:1}
+.stat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.stat-icon{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;font-size:20px}
+.stat-icon.blue{background:var(--info-soft);color:var(--info)}
+.stat-icon.green{background:var(--success-soft);color:var(--success)}
+.stat-icon.orange{background:var(--accent-soft);color:var(--accent)}
+.stat-icon.purple{background:rgba(139,92,246,0.12);color:#8b5cf6}
+.stat-icon.red{background:var(--error-soft);color:var(--error)}
+.stat-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+.stat-value{font-size:28px;font-weight:800;margin-top:6px;letter-spacing:-.8px}
+.stat-change{font-size:11px;color:var(--success);margin-top:4px;font-weight:500}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:22px;margin-bottom:18px;transition:.15s}
+.card:hover{border-color:var(--border-default)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.card-title{font-size:15px;font-weight:700}
+.card-subtitle{font-size:12px;color:var(--text-muted);margin-top:3px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:active{transform:scale(.96)}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#ff5722);color:white;box-shadow:0 4px 16px var(--accent-glow)}
+.btn-secondary{background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border-default)}
+.btn-success{background:var(--success);color:var(--bg-primary)}
+.btn-error{background:var(--error);color:white}
+.btn-info{background:var(--info);color:white}
+.btn-sm{padding:7px 13px;font-size:12px}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border-default)}
+
+/* Tables */
+.table-wrap{width:100%;overflow-x:auto;border-radius:12px;border:1px solid var(--border-subtle)}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);padding:13px 15px;background:var(--bg-elevated);border-bottom:1px solid var(--border-subtle);white-space:nowrap}
+td{padding:13px 15px;border-bottom:1px solid var(--border-subtle);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:var(--bg-elevated)}
+
+/* Badges */
+.badge{display:inline-flex;padding:4px 11px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.3px}
+.badge-success{background:var(--success-soft);color:var(--success);border:1px solid rgba(0,208,132,0.15)}
+.badge-error{background:var(--error-soft);color:var(--error);border:1px solid rgba(239,68,68,0.15)}
+.badge-warning{background:var(--warning-soft);color:var(--warning);border:1px solid rgba(251,191,36,0.15)}
+.badge-info{background:var(--info-soft);color:var(--info);border:1px solid rgba(59,130,246,0.15)}
+.badge-gray{background:var(--bg-elevated);color:var(--text-muted);border:1px solid var(--border-default)}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--text-secondary);font-weight:600;margin-bottom:6px}
+.field input,.field textarea,.field select{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--border-default);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:13px;outline:none;transition:.15s}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field textarea{min-height:110px;resize:vertical}
+.field input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
+.check-row{display:flex;align-items:center;gap:10px;font-size:13px;margin:12px 0;cursor:pointer}
+
+/* Search */
+.search-box{max-width:360px;margin-bottom:16px;position:relative}
+.search-box input{width:100%;padding:12px 14px 12px 40px;border-radius:10px;border:1.5px solid var(--border-default);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:13px;outline:none}
+.search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--text-muted);fill:none;stroke-width:2}
+
+/* Payment switches */
+.payment-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;background:var(--bg-elevated);border-radius:12px;margin-bottom:10px;border:1px solid var(--border-subtle);transition:.15s}
+.payment-row:hover{border-color:var(--border-default)}
+.payment-row strong{font-size:14px}
+.payment-row small{display:block;color:var(--text-muted);font-size:11px;margin-top:2px}
+.switch{position:relative;width:48px;height:26px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;inset:0;background:var(--border-default);border-radius:20px;transition:.2s;cursor:pointer}
+.switch .slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+.slider{background:var(--success)}
+.switch input:checked+.slider:before{transform:translateX(22px)}
+
+/* Tabs */
+.tabs{display:flex;background:var(--bg-card);border-radius:999px;padding:4px;margin-bottom:18px;border:1px solid var(--border-subtle);width:fit-content}
+.tab{padding:9px 20px;border-radius:999px;font-size:12px;font-weight:600;color:var(--text-secondary);border:none;background:transparent;font-family:inherit;cursor:pointer;transition:.15s;white-space:nowrap}
+.tab.active{background:var(--accent);color:white}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;padding:14px 20px;border-radius:12px;background:var(--bg-elevated);color:var(--text-primary);font-size:13px;max-width:360px;box-shadow:var(--shadow-lg);border:1px solid var(--border-default);display:none;animation:slideIn .25s ease}
+.toast.show{display:block}
+.toast-success{background:var(--success-soft);color:var(--success);border-color:rgba(0,208,132,0.25)}
+.toast-error{background:var(--error-soft);color:var(--error);border-color:rgba(239,68,68,0.25)}
+@keyframes slideIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:150;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--bg-card);border-radius:16px;width:100%;max-width:650px;max-height:90vh;overflow-y:auto;border:1px solid var(--border-default);box-shadow:var(--shadow-lg)}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg-card);z-index:1}
+.modal-head h3{margin:0;font-size:16px;font-weight:700}
+.modal-body{padding:22px}
+.detail-row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--border-subtle);font-size:13px}
+.detail-row:last-child{border-bottom:0}
+.detail-row .k{color:var(--text-muted);font-weight:600;flex-shrink:0}
+.detail-row .v{font-weight:600;text-align:right;word-break:break-word;max-width:60%}
+
+/* Screenshot preview */
+.screenshot-preview{width:100%;max-height:320px;object-fit:contain;border-radius:12px;border:1px solid var(--border-default);background:var(--bg-deep);margin-bottom:14px;cursor:pointer;transition:.2s}
+.screenshot-preview:hover{transform:scale(1.01)}
+
+/* Submission card */
+.submission-card{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:14px;padding:18px;margin-bottom:14px;transition:.15s}
+.submission-card:hover{border-color:var(--border-default)}
+.submission-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+.submission-user{display:flex;align-items:center;gap:12px}
+.submission-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#ff5722);display:grid;place-items:center;font-size:16px;font-weight:700;color:white;flex-shrink:0}
+.submission-name{font-size:14px;font-weight:700}
+.submission-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
+.submission-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle)}
+
+/* Activity log */
+.log-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-subtle)}
+.log-item:last-child{border-bottom:0}
+.log-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.log-content{flex:1}
+.log-title{font-size:13px;font-weight:600}
+.log-time{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+/* Chart bars */
+.chart-bar-container{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.chart-label{width:100px;font-size:12px;color:var(--text-secondary);flex-shrink:0;text-align:right}
+.chart-bar{flex:1;height:32px;background:var(--bg-elevated);border-radius:8px;overflow:hidden;position:relative}
+.chart-fill{height:100%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:11px;font-weight:700;color:white}
+.chart-fill.blue{background:linear-gradient(90deg,var(--info),#60a5fa)}
+.chart-fill.green{background:linear-gradient(90deg,var(--success),#34d399)}
+.chart-fill.orange{background:linear-gradient(90deg,var(--accent),#fb923c)}
+.chart-fill.purple{background:linear-gradient(90deg,#8b5cf6,#a78bfa)}
+
+/* Quick actions grid */
+.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.qa-item{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:.15s}
+.qa-item:hover{border-color:var(--accent);transform:translateY(-2px)}
+.qa-item svg{width:24px;height:24px;stroke:var(--accent);fill:none;stroke-width:2;margin-bottom:8px}
+.qa-item div{font-size:12px;font-weight:600}
+
+/* Page sections */
+.page{display:none}
+.page.active{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.empty{text-align:center;color:var(--text-muted);padding:50px 20px;font-size:13px}
+.empty-icon{font-size:44px;margin-bottom:14px;opacity:.5}
+
+/* Responsive */
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.show{transform:none}
+  .main{margin-left:0}
+  .mobile-toggle{display:grid}
+  .sidebar-overlay.show{display:block}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .form-grid{grid-template-columns:1fr}
+  .qa-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:520px){
+  .stats-grid{grid-template-columns:1fr;gap:10px}
+  .stat-value{font-size:22px}
+  .content{padding:16px}
+  .card{padding:16px}
+  .qa-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">E</div>
+      <div>
+        <h1>EarnWallet Admin</h1>
+        <small>CONTROL PANEL</small>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Main</div>
+      <button class="sidebar-item active" onclick="go('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="sidebar-item" onclick="go('users')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Users
+      </button>
+      <button class="sidebar-item" onclick="go('tasks')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Tasks
+      </button>
+      <button class="sidebar-item" onclick="go('submissions')">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Submissions
+        <span class="sidebar-badge" id="submissionsBadge" style="display:none">0</span>
+      </button>
+      <button class="sidebar-item" onclick="go('ads')">
+        <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Ads
+      </button>
+      <button class="sidebar-item" onclick="go('withdrawals')">
+        <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 3.88-9.36L1 10"/><polyline points="8 4 1 4 1 11"/></svg>
+        Withdrawals
+      </button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">System</div>
+      <button class="sidebar-item" onclick="go('payments')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+        Payments
+      </button>
+      <button class="sidebar-item" onclick="go('settings')">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="sidebar-item" onclick="go('logs')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Activity Logs
+      </button>
+      <button class="sidebar-item" onclick="go('backup')">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Backup
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="mobile-toggle" id="mobileToggle" onclick="toggleSidebar()">☰</button>
+        <h2 id="pageTitle">Dashboard</h2>
+      </div>
+      <div class="topbar-actions">
+        <div class="topbar-status"><span class="status-dot"></span><span id="connStatus">Online</span></div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshPage()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-header"><div class="stat-icon blue">👥</div><span class="stat-label">Total Users</span></div>
+            <div class="stat-value" id="dashUsers">—</div>
+            <div class="stat-change">All registered accounts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header"><div class="stat-icon orange">☷</div><span class="stat-label">Total Tasks</span></div>
+            <div class="stat-value" id="dashTasks">—</div>
+            <div class="stat-change">Active & pending</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header"><div class="stat-icon purple">▶</div><span class="stat-label">Advertisements</span></div>
+            <div class="stat-value" id="dashAds">—</div>
+            <div class="stat-change">Live campaigns</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-header"><div class="stat-icon green">↗</div><span class="stat-label">Pending Withdrawals</span></div>
+            <div class="stat-value" id="dashPending">—</div>
+            <div class="stat-change">Awaiting approval</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:18px">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Platform Overview</div><div class="card-subtitle">Key metrics at a glance</div></div></div>
+            <div class="chart-bar-container"><div class="chart-label">Users</div><div class="chart-bar"><div class="chart-fill blue" id="chartUsers" style="width:0%"></div></div></div>
+            <div class="chart-bar-container"><div class="chart-label">Tasks</div><div class="chart-bar"><div class="chart-fill green" id="chartTasks" style="width:0%"></div></div></div>
+            <div class="chart-bar-container"><div class="chart-label">Ads</div><div class="chart-bar"><div class="chart-fill orange" id="chartAds" style="width:0%"></div></div></div>
+            <div class="chart-bar-container"><div class="chart-label">Withdrawals</div><div class="chart-bar"><div class="chart-fill purple" id="chartWithdrawals" style="width:0%"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Quick Actions</div><div class="card-subtitle">Common admin tasks</div></div></div>
+            <div class="qa-grid">
+              <div class="qa-item" onclick="go('users')"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div>Manage Users</div></div>
+              <div class="qa-item" onclick="go('submissions')"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/></svg><div>Review Submissions</div></div>
+              <div class="qa-item" onclick="go('withdrawals')"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 3.88-9.36L1 10"/></svg><div>Process Withdrawals</div></div>
+              <div class="qa-item" onclick="go('tasks')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><div>Create Task</div></div>
+              <div class="qa-item" onclick="go('ads')"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/></svg><div>Create Ad</div></div>
+              <div class="qa-item" onclick="go('settings')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><div>App Settings</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">System Status</div><div class="card-subtitle">EarnWallet backend health</div></div><span class="badge badge-success" id="systemStatus">Connected</span></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+            <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;border:1px solid var(--border-subtle)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Authentication</div>
+              <div style="font-size:13px;color:var(--success);font-weight:700">✓ Telegram InitData</div>
+            </div>
+            <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;border:1px solid var(--border-subtle)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">Database</div>
+              <div style="font-size:13px;color:var(--success);font-weight:700">✓ Firebase Firestore</div>
+            </div>
+            <div style="padding:16px;background:var(--bg-elevated);border-radius:12px;border:1px solid var(--border-subtle)">
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">API Version</div>
+              <div style="font-size:13px;color:var(--info);font-weight:700">v2.0.0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="page" id="page-users">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">User Management</div><div class="card-subtitle">Search, view and moderate user accounts</div></div><button class="btn btn-secondary btn-sm" onclick="loadUsers()">↻ Refresh</button></div>
+          <div class="search-box"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="userSearch" placeholder="Search by name, username or UID..." oninput="renderUsers()"></div>
+          <div class="tabs"><button class="tab active" onclick="filterUsers('all',this)">All</button><button class="tab" onclick="filterUsers('active',this)">Active</button><button class="tab" onclick="filterUsers('banned',this)">Blocked</button></div>
+          <div class="table-wrap"><table><thead><tr><th>UID</th><th>Name</th><th>Balance</th><th>Tasks</th><th>Referrals</th><th>Status</th><th>Action</th></tr></thead><tbody id="usersTable"><tr><td colspan="7" class="empty"><div class="empty-icon">👥</div>Loading users...</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="page" id="page-tasks">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Create New Task</div><div class="card-subtitle">Add a task for users to complete</div></div></div>
+          <form onsubmit="createTask(event)">
+            <div class="form-grid">
+              <div class="field"><label>Task Name</label><input id="taskTitle" required maxlength="120" placeholder="e.g. Follow on Twitter"></div>
+              <div class="field"><label>Reward (USDT)</label><input id="taskReward" type="number" min="0.001" step="0.001" required placeholder="0.10"></div>
+              <div class="field"><label>Task Link (Optional)</label><input id="taskUrl" type="url" placeholder="https://example.com"></div>
+              <div class="field"><label>Category</label><select id="taskCategory" style="padding:12px 14px;border-radius:10px;border:1.5px solid var(--border-default);background:var(--bg-elevated);color:var(--text-primary);font-family:inherit;font-size:13px;"><option value="">Select category</option><option>Telegram</option><option>Twitter</option><option>YouTube</option><option>Other</option></select></div>
+            </div>
+            <div class="field"><label>Instructions</label><textarea id="taskDescription" rows="3" maxlength="1200" placeholder="Describe what users need to do to complete this task..."></textarea></div>
+            <label class="check-row"><input type="checkbox" id="taskProof" checked> Require screenshot proof</label>
+            <button class="btn btn-accent" type="submit" style="width:auto;margin-top:6px">＋ Create Task</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Task List</div><div class="card-subtitle">All created tasks</div></div><button class="btn btn-secondary btn-sm" onclick="loadTasks()">↻ Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Task</th><th>Reward</th><th>Category</th><th>Proof</th><th>Status</th><th>Action</th></tr></thead><tbody id="tasksTable"><tr><td colspan="6" class="empty"><div class="empty-icon">☷</div>Loading tasks...</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- SUBMISSIONS -->
+      <div class="page" id="page-submissions">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Task Submissions</div><div class="card-subtitle">Review user task submissions and approve rewards</div></div><button class="btn btn-secondary btn-sm" onclick="loadSubmissions()">↻ Refresh</button></div>
+          <div class="tabs"><button class="tab active" onclick="filterSubmissions('all',this)">All</button><button class="tab" onclick="filterSubmissions('pending',this)">Pending</button><button class="tab" onclick="filterSubmissions('approved',this)">Approved</button><button class="tab" onclick="filterSubmissions('rejected',this)">Rejected</button></div>
+          <div id="submissionsList"><div class="empty"><div class="empty-icon">📋</div>Loading submissions...</div></div>
+        </div>
+      </div>
+
+      <!-- ADS -->
+      <div class="page" id="page-ads">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Create New Ad</div><div class="card-subtitle">Add an advertisement for users to watch</div></div></div>
+          <form onsubmit="createAd(event)">
+            <div class="form-grid">
+              <div class="field"><label>Ad Title</label><input id="adTitle" required maxlength="120" placeholder="e.g. Watch Sponsored Video"></div>
+              <div class="field"><label>Reward (USDT)</label><input id="adReward" type="number" min="0.001" max="100" step="0.001" required placeholder="0.05"></div>
+              <div class="field"><label>Ad Link</label><input id="adUrl" type="url" required placeholder="https://example.com"></div>
+              <div class="field"><label>Duration (seconds)</label><input id="adDuration" type="number" min="10" max="300" value="30" required></div>
+            </div>
+            <button class="btn btn-accent" type="submit" style="width:auto;margin-top:6px">＋ Create Ad</button>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Ad List</div><div class="card-subtitle">All advertisements</div></div><button class="btn btn-secondary btn-sm" onclick="loadAds()">↻ Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Ad</th><th>Reward</th><th>Duration</th><th>Status</th><th>Action</th></tr></thead><tbody id="adsTable"><tr><td colspan="5" class="empty"><div class="empty-icon">▶</div>Loading ads...</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- WITHDRAWALS -->
+      <div class="page" id="page-withdrawals">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Withdrawal Requests</div><div class="card-subtitle">Approve or reject pending payouts</div></div><button class="btn btn-secondary btn-sm" onclick="loadWithdrawals()">↻ Refresh</button></div>
+          <div class="tabs"><button class="tab active" onclick="filterWithdrawals('all',this)">All</button><button class="tab" onclick="filterWithdrawals('pending',this)">Pending</button><button class="tab" onclick="filterWithdrawals('approved',this)">Approved</button><button class="tab" onclick="filterWithdrawals('rejected',this)">Rejected</button></div>
+          <div class="table-wrap"><table><thead><tr><th>User</th><th>Amount</th><th>Method</th><th>Account</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody id="withdrawalsTable"><tr><td colspan="7" class="empty"><div class="empty-icon">↗</div>Loading withdrawals...</td></tr></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div class="page" id="page-payments">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Payment Methods</div><div class="card-subtitle">Enable or disable withdrawal methods</div></div><button class="btn btn-secondary btn-sm" onclick="loadPayments()">↻ Refresh</button></div>
+          <div class="payment-row"><div><strong>₮ USDT (TRC20)</strong><small>USDT withdrawal via TRC20 network</small></div><label class="switch"><input type="checkbox" id="payUsdt"><span class="slider"></span></label></div>
+          <div class="payment-row"><div><strong>Ł Litecoin</strong><small>LTC withdrawal method</small></div><label class="switch"><input type="checkbox" id="payLtc"><span class="slider"></span></label></div>
+          <div class="payment-row"><div><strong>Ξ Ethereum</strong><small>ETH withdrawal method</small></div><label class="switch"><input type="checkbox" id="payEth"><span class="slider"></span></label></div>
+          <button class="btn btn-accent" style="width:auto;margin-top:8px" onclick="savePayments()">Save Payment Settings</button>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Application Settings</div><div class="card-subtitle">Configure EarnWallet platform settings</div></div><button class="btn btn-secondary btn-sm" onclick="loadSettings()">↻ Refresh</button></div>
+          <form onsubmit="saveSettings(event)">
+            <div class="form-grid">
+              <div class="field"><label>App Name</label><input id="settingAppName" maxlength="60" required></div>
+              <div class="field"><label>Min Withdrawal (USDT)</label><input id="settingMinWithdraw" type="number" min="0.001" step="0.001" required></div>
+              <div class="field"><label>Referral Bonus (USDT)</label><input id="settingReferralBonus" type="number" min="0" step="0.001" placeholder="0.10"></div>
+              <div class="field"><label>Required Referrals</label><input id="settingRequiredRefs" type="number" min="0" placeholder="10"></div>
+            </div>
+            <div class="field"><label>Support URL</label><input id="settingSupport" type="url" placeholder="https://t.me/support"></div>
+            <div class="field"><label>Maintenance Message</label><textarea id="settingMaintenanceMessage" maxlength="500" rows="3"></textarea></div>
+            <label class="check-row"><input type="checkbox" id="settingMaintenance"> Enable Maintenance Mode</label>
+            <button class="btn btn-accent" type="submit" style="width:auto;margin-top:8px">Save Settings</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div class="page" id="page-logs">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Activity Logs</div><div class="card-subtitle">Recent admin actions</div></div></div>
+          <div id="activityLogs"><div class="log-item"><div class="log-dot" style="background:var(--info)"></div><div class="log-content"><div class="log-title">Admin panel loaded</div><div class="log-time">Just now</div></div></div></div>
+        </div>
+      </div>
+
+      <!-- BACKUP -->
+      <div class="page" id="page-backup">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Database Backup</div><div class="card-subtitle">Export all Firestore data as JSON</div></div></div>
+          <p style="color:var(--text-secondary);font-size:13px;margin-bottom:18px;line-height:1.7">Backup includes users, tasks, ads, submissions, referrals, transactions, withdrawals, and app configuration. Download a backup before making major changes.</p>
+          <button class="btn btn-accent" style="width:auto" onclick="downloadBackup()">⬇ Download Backup</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Database Restore</div><div class="card-subtitle">Import data from a backup file</div></div></div>
+          <p style="color:var(--text-secondary);font-size:13px;margin-bottom:18px;line-height:1.7">Restore uses MERGE mode. Existing documents will be updated. No documents will be deleted. Always download a fresh backup first.</p>
+          <div class="field" style="margin-bottom:10px"><label>Backup JSON File</label><input type="file" id="restoreFile" accept=".json,application/json"></div>
+          <button class="btn btn-error" style="width:auto" onclick="restoreBackup()">Restore Backup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Details</h3><button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const tg = window.Telegram?.WebApp;
+if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
+const initData = tg?.initData || '';
+const API_HEADERS = { 'Content-Type': 'application/json', ...(initData ? { Authorization: 'tma ' + initData } : {}) };
+const $ = id => document.getElementById(id);
+let currentPage = 'dashboard';
+let cachedUsers = [], cachedAds = [], cachedTasks = [], cachedWithdrawals = [], cachedSubmissions = [];
+let userFilter = 'all', withdrawFilter = 'all', submissionFilter = 'all';
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function usd(v) { return '$ ' + (Number(v || 0) / 110).toLocaleString('en-US', {maximumFractionDigits: 4}); }
+function toast(msg, kind) {
+  const el = $('toast'); el.textContent = msg; el.className = 'toast show' + (kind ? ' toast-' + kind : '');
+  clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove('show'), 4000);
+}
+async function api(url, opts = {}) {
+  if (!initData) throw new Error('Please open from Admin Bot');
+  const r = await fetch(url, { ...opts, headers: { ...API_HEADERS, ...(opts.headers || {}) } });
+
+  // Handle empty response body (common for some backend endpoints)
+  const text = await r.text();
+  if (!text || !text.trim()) {
+    if (r.ok) return { data: [] }; // Empty but successful = empty array
+    throw new Error(`Server returned empty response (HTTP ${r.status})`);
+  }
+
+  let d;
+  try { d = JSON.parse(text); }
+  catch (e) { 
+    // Might be HTML error page
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 150);
+    throw new Error(`Invalid JSON response (HTTP ${r.status})${snippet ? ': ' + snippet : ''}`); 
+  }
+
+  if (!r.ok || d.success === false) { 
+    if (r.status === 401) throw new Error('Authentication failed. Please reopen from Admin Bot.'); 
+    if (r.status === 403) throw new Error('Access denied. Admin privileges required.'); 
+    throw new Error(d.error || `Request failed (${r.status})`); 
+  }
+  return d;
+}
+
+// Sidebar
+window.toggleSidebar = function() { $('sidebar').classList.toggle('show'); $('sidebarOverlay').classList.toggle('show'); };
+window.closeSidebar = function() { $('sidebar').classList.remove('show'); $('sidebarOverlay').classList.remove('show'); };
+
+// Navigation
+const pageTitles = { dashboard: 'Dashboard', users: 'User Management', tasks: 'Task Management', submissions: 'Task Submissions', ads: 'Ad Management', withdrawals: 'Withdrawal Management', payments: 'Payment Settings', settings: 'App Settings', logs: 'Activity Logs', backup: 'Backup & Restore' };
+window.go = function(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.id === 'page-' + page));
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  const idx = Object.keys(pageTitles).indexOf(page);
+  if (idx >= 0) document.querySelectorAll('.sidebar-item')[idx]?.classList.add('active');
+  $('pageTitle').textContent = pageTitles[page];
+  closeSidebar();
+  const loaders = { dashboard: loadDashboard, users: loadUsers, tasks: loadTasks, submissions: loadSubmissions, ads: loadAds, withdrawals: loadWithdrawals, payments: loadPayments, settings: loadSettings, logs: loadLogs };
+  if (loaders[page]) loaders[page]();
+};
+window.refreshPage = function() { go(currentPage); };
+
+// Modal
+window.openModal = function(title, html) { $('modalTitle').textContent = title; $('modalBody').innerHTML = html; $('modalOverlay').classList.add('show'); };
+window.closeModal = function() { $('modalOverlay').classList.remove('show'); };
+
+// Add log
+function addLog(title, type='info') {
+  const colors = {info:'var(--info)', success:'var(--success)', error:'var(--error)', warning:'var(--warning)'};
+  const container = $('activityLogs');
+  if (!container) return;
+  const time = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `<div class="log-dot" style="background:${colors[type]||colors.info}"></div><div class="log-content"><div class="log-title">${esc(title)}</div><div class="log-time">${time}</div></div>`;
+  container.insertBefore(div, container.firstChild);
+}
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    const r = await api('/api/admin/stats');
+    const d = r.data || {};
+    const users = Number(d.totalUsers || 0);
+    const pending = Number(d.pendingWithdraws || 0);
+    $('dashUsers').textContent = users.toLocaleString();
+    $('dashPending').textContent = pending.toLocaleString();
+    $('connStatus').textContent = 'Online';
+    $('systemStatus').textContent = 'Connected';
+    $('systemStatus').className = 'badge badge-success';
+    const maxVal = Math.max(users, 1);
+    $('chartUsers').style.width = '85%';
+    $('chartWithdrawals').style.width = Math.min(100, (pending / Math.max(users,1)) * 500) + '%';
+  } catch (e) { 
+    toast(e.message, 'error'); 
+    $('connStatus').textContent = 'Offline'; 
+    $('systemStatus').textContent = 'Disconnected';
+    $('systemStatus').className = 'badge badge-error';
+  }
+  try { const t = await api('/api/admin/tasks'); const tc = (t.data || []).length; $('dashTasks').textContent = tc; $('chartTasks').style.width = Math.min(100, tc * 5) + '%'; } catch {}
+  try { const a = await api('/api/admin/ads'); const ac = (a.data || []).length; $('dashAds').textContent = ac; $('chartAds').style.width = Math.min(100, ac * 10) + '%'; } catch {}
+  addLog('Dashboard refreshed', 'success');
+}
+
+// Users
+window.loadUsers = async function() {
+  $('usersTable').innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">👥</div>Loading users...</td></tr>';
+  try {
+    const r = await api('/api/admin/users');
+    cachedUsers = r.data || [];
+    renderUsers();
+    addLog(`Loaded ${cachedUsers.length} users`, 'success');
+  } catch (e) { 
+    $('usersTable').innerHTML = `<tr><td colspan="7" class="empty">${esc(e.message)}</td></tr>`; 
+    toast(e.message, 'error'); 
+    addLog('Failed to load users: ' + e.message, 'error');
+  }
+};
+window.filterUsers = function(filter, el) {
+  userFilter = filter;
+  document.querySelectorAll('#page-users .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderUsers();
+};
+window.renderUsers = function() {
+  const q = ($('userSearch').value || '').trim().toLowerCase();
+  let rows = cachedUsers;
+  if (q) rows = rows.filter(u => String(u.telegramId || u.id || '').toLowerCase().includes(q) || String(u.firstName || '').toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q));
+  if (userFilter === 'active') rows = rows.filter(u => u.status !== 'banned');
+  if (userFilter === 'banned') rows = rows.filter(u => u.status === 'banned');
+  if (!rows.length) { $('usersTable').innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">👥</div>No users found</td></tr>'; return; }
+  $('usersTable').innerHTML = rows.map(u => {
+    const id = String(u.telegramId || u.id || '');
+    const banned = u.status === 'banned';
+    return `<tr><td><code>${esc(id)}</code></td><td><strong>${esc(u.firstName || 'User')} ${esc(u.lastName || '')}</strong><div style="font-size:11px;color:var(--text-muted)">@${esc(u.username || 'no_username')}</div></td><td><strong>${usd(u.balance)}</strong></td><td>${Number(u.completedTasks || 0)}</td><td>${Number(u.referralsCount || 0)}</td><td><span class="badge ${banned ? 'badge-error' : 'badge-success'}">${banned ? 'Blocked' : 'Active'}</span></td><td style="white-space:nowrap"><button class="btn btn-secondary btn-sm" onclick="viewUser('${esc(id)}')">View</button> <button class="btn ${banned ? 'btn-success' : 'btn-error'} btn-sm" onclick="changeUserStatus('${esc(id)}','${banned ? 'active' : 'banned'}')">${banned ? 'Unblock' : 'Block'}</button></td></tr>`;
+  }).join('');
+};
+window.viewUser = function(id) {
+  const u = cachedUsers.find(x => String(x.telegramId || x.id) === String(id));
+  if (!u) return;
+  const rows = Object.entries(u).filter(([k]) => !['password','token','secret'].includes(k.toLowerCase())).map(([k,v]) => {
+    const val = (v && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v ?? '—');
+    return `<div class="detail-row"><span class="k">${esc(k)}</span><span class="v">${esc(val)}</span></div>`;
+  }).join('');
+  openModal('User Details', rows);
+};
+window.changeUserStatus = async function(id, status) {
+  if (!confirm(`Are you sure you want to ${status === 'banned' ? 'block' : 'unblock'} this user?`)) return;
+  try { 
+    await api('/api/admin/ban', { method: 'POST', body: JSON.stringify({ telegramId: id, status }) }); 
+    toast('User status updated', 'success'); 
+    addLog(`User ${id} ${status === 'banned' ? 'blocked' : 'unblocked'}`, 'warning');
+    loadUsers(); 
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+// Tasks
+window.loadTasks = async function() {
+  $('tasksTable').innerHTML = '<tr><td colspan="6" class="empty"><div class="empty-icon">☷</div>Loading tasks...</td></tr>';
+  try {
+    const r = await api('/api/admin/tasks');
+    cachedTasks = r.data || [];
+    if (!cachedTasks.length) { $('tasksTable').innerHTML = '<tr><td colspan="6" class="empty"><div class="empty-icon">☷</div>No tasks created yet</td></tr>'; return; }
+    $('tasksTable').innerHTML = cachedTasks.map(t => `<tr><td><strong>${esc(t.title)}</strong></td><td>${usd(t.reward)}</td><td>${esc(t.category || '—')}</td><td>${t.requiresProof ? '✓ Required' : '✗ No'}</td><td><span class="badge ${t.status === 'active' ? 'badge-success' : 'badge-warning'}">${esc(t.status || 'unknown')}</span></td><td><button class="btn btn-error btn-sm" onclick="deleteTask('${esc(t.id)}')">Delete</button></td></tr>`).join('');
+    addLog(`Loaded ${cachedTasks.length} tasks`, 'success');
+  } catch (e) { $('tasksTable').innerHTML = `<tr><td colspan="6" class="empty">${esc(e.message)}</td></tr>`; toast(e.message, 'error'); }
+};
+window.createTask = async function(ev) {
+  ev.preventDefault();
+  const reward = Number($('taskReward').value);
+  if (!reward || reward <= 0) { toast('Please enter a valid reward amount', 'error'); return; }
+  const payload = { title: $('taskTitle').value.trim(), url: $('taskUrl').value.trim(), description: $('taskDescription').value.trim().slice(0, 1200), reward: reward * 110, requiresProof: $('taskProof').checked, category: $('taskCategory').value };
+  try { 
+    await api('/api/admin/tasks', { method: 'POST', body: JSON.stringify(payload) }); 
+    ev.target.reset(); 
+    toast('Task created successfully', 'success'); 
+    addLog('New task created: ' + payload.title, 'success');
+    loadTasks(); 
+  } catch (e) { toast(e.message, 'error'); }
+};
+window.deleteTask = async function(id) { 
+  if (!confirm('Delete this task permanently?')) return; 
+  try { 
+    await api('/api/admin/tasks/' + encodeURIComponent(id), { method: 'DELETE' }); 
+    toast('Task deleted', 'success'); 
+    addLog('Task deleted: ' + id, 'warning');
+    loadTasks(); 
+  } catch (e) { toast(e.message, 'error'); } 
+};
+
+// SUBMISSIONS - Fixed with better error handling
+window.loadSubmissions = async function() {
+  const box = $('submissionsList');
+  box.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>Loading submissions...</div>';
+  try {
+    const r = await api('/api/admin/task-submissions');
+    cachedSubmissions = r.data || [];
+    renderSubmissions();
+    const pendingCount = cachedSubmissions.filter(s => s.status === 'pending').length;
+    const badge = $('submissionsBadge');
+    if (pendingCount > 0) { badge.textContent = pendingCount; badge.style.display = 'inline-flex'; }
+    else badge.style.display = 'none';
+    addLog(`Loaded ${cachedSubmissions.length} submissions`, 'success');
+  } catch (e) { 
+    // Check if it's just empty data vs a real error
+    const isEmptyError = e.message.includes('empty response') || e.message.includes('Invalid JSON');
+    if (isEmptyError) {
+      cachedSubmissions = [];
+      renderSubmissions();
+      toast('No submissions found (server returned empty data)', 'info');
+      addLog('Submissions endpoint returned empty data', 'warning');
+    } else {
+      box.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><strong>Server Error</strong><br><br>${esc(e.message)}<br><br><button class="btn btn-secondary btn-sm" onclick="loadSubmissions()">Try Again</button></div>`; 
+      toast('Failed to load submissions: ' + e.message, 'error');
+      addLog('Submission load failed: ' + e.message, 'error');
+    }
+  }
+};
+window.filterSubmissions = function(filter, el) {
+  submissionFilter = filter;
+  document.querySelectorAll('#page-submissions .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderSubmissions();
+};
+function renderSubmissions() {
+  const box = $('submissionsList');
+  let rows = cachedSubmissions;
+  if (submissionFilter !== 'all') rows = rows.filter(s => s.status === submissionFilter);
+  if (!rows.length) { 
+    box.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No ${submissionFilter !== 'all' ? submissionFilter : ''} submissions found</div>`; 
+    return; 
+  }
+  box.innerHTML = rows.map(s => {
+    const statusClass = s.status === 'approved' ? 'badge-success' : s.status === 'pending' ? 'badge-warning' : 'badge-error';
+    const proofHtml = s.proofImageDataUrl ? `<img src="${s.proofImageDataUrl}" class="screenshot-preview" alt="Proof" onclick="window.open('${s.proofImageDataUrl}','_blank')">` : '';
+    const proofText = s.proof ? `<div style="background:var(--bg-primary);padding:12px;border-radius:10px;font-size:13px;margin-bottom:12px;border:1px solid var(--border-subtle)"><strong style="color:var(--text-secondary);font-size:11px;text-transform:uppercase">User Response:</strong><br>${esc(s.proof)}</div>` : '';
+    return `<div class="submission-card">
+      <div class="submission-header">
+        <div class="submission-user">
+          <div class="submission-avatar">👤</div>
+          <div>
+            <div class="submission-name">${esc(s.userName || s.userId || 'Unknown User')}</div>
+            <div class="submission-meta">Task: ${esc(s.taskTitle || s.taskId || 'Unknown')} · ${esc(s.createdAt ? new Date(s.createdAt).toLocaleString() : 'Unknown date')}</div>
+          </div>
+        </div>
+        <span class="badge ${statusClass}">${esc(s.status || 'pending').toUpperCase()}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:10px;background:var(--bg-primary);border-radius:10px;border:1px solid var(--border-subtle)">
+        <span style="font-size:12px;color:var(--text-secondary)">Reward Amount</span>
+        <span style="font-size:16px;font-weight:800;color:var(--accent)">${usd(s.reward)}</span>
+      </div>
+      ${proofText}
+      ${proofHtml}
+      ${s.status === 'pending' ? `<div class="submission-actions">
+        <button class="btn btn-success" style="flex:1" onclick="reviewSubmission('${esc(s.id)}','approved')">✓ Approve & Pay</button>
+        <button class="btn btn-error" style="flex:1" onclick="reviewSubmission('${esc(s.id)}','rejected')">✕ Reject</button>
+        <button class="btn btn-secondary" onclick="viewSubmissionDetails('${esc(s.id)}')">Details</button>
+      </div>` : `<div class="submission-actions" style="justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="viewSubmissionDetails('${esc(s.id)}')">View Details</button></div>`}
+    </div>`;
+  }).join('');
+}
+window.viewSubmissionDetails = function(id) {
+  const s = cachedSubmissions.find(x => x.id === id);
+  if (!s) return;
+  const rows = Object.entries(s).filter(([k]) => !['proofImageDataUrl'].includes(k)).map(([k,v]) => {
+    const val = (v && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v ?? '—');
+    return `<div class="detail-row"><span class="k">${esc(k)}</span><span class="v">${esc(val)}</span></div>`;
+  }).join('');
+  openModal('Submission Details', rows);
+};
+window.reviewSubmission = async function(id, status) {
+  const action = status === 'approved' ? 'approve' : 'reject';
+  if (!confirm(`Are you sure you want to ${action} this submission? ${status === 'approved' ? 'The reward will be credited to the user.' : ''}`)) return;
+  try { 
+    await api('/api/admin/task-submissions/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ status }) }); 
+    toast(`Submission ${action}d successfully`, 'success'); 
+    addLog(`Submission ${id} ${action}d`, status === 'approved' ? 'success' : 'warning');
+    loadSubmissions(); 
+    loadDashboard();
+  } catch (e) { 
+    toast('Failed to ' + action + ': ' + e.message, 'error'); 
+    addLog(`Submission ${action} failed: ` + e.message, 'error');
+  }
+};
+
+// Ads
+window.loadAds = async function() {
+  $('adsTable').innerHTML = '<tr><td colspan="5" class="empty"><div class="empty-icon">▶</div>Loading ads...</td></tr>';
+  try {
+    const r = await api('/api/admin/ads');
+    cachedAds = r.data || [];
+    if (!cachedAds.length) { $('adsTable').innerHTML = '<tr><td colspan="5" class="empty"><div class="empty-icon">▶</div>No ads created yet</td></tr>'; return; }
+    $('adsTable').innerHTML = cachedAds.map(a => `<tr><td><strong>${esc(a.title)}</strong></td><td>${usd(a.reward)}</td><td>${Number(a.duration || 0)}s</td><td><span class="badge ${a.status === 'active' ? 'badge-success' : 'badge-gray'}">${esc(a.status || 'unknown')}</span></td><td><button class="btn btn-error btn-sm" onclick="deleteAd('${esc(a.id)}')">Delete</button></td></tr>`).join('');
+    addLog(`Loaded ${cachedAds.length} ads`, 'success');
+  } catch (e) { $('adsTable').innerHTML = `<tr><td colspan="5" class="empty">${esc(e.message)}</td></tr>`; toast(e.message, 'error'); }
+};
+window.createAd = async function(ev) {
+  ev.preventDefault();
+  const reward = Number($('adReward').value);
+  if (!reward || reward <= 0) { toast('Please enter a valid reward amount', 'error'); return; }
+  const payload = { title: $('adTitle').value.trim(), url: $('adUrl').value.trim(), reward: reward * 110, duration: Number($('adDuration').value) };
+  try { 
+    await api('/api/admin/ads', { method: 'POST', body: JSON.stringify(payload) }); 
+    ev.target.reset(); $('adDuration').value = 30;
+    toast('Ad created successfully', 'success'); 
+    addLog('New ad created: ' + payload.title, 'success');
+    loadAds(); 
+  } catch (e) { toast(e.message, 'error'); }
+};
+window.deleteAd = async function(id) { 
+  if (!confirm('Delete this ad permanently?')) return; 
+  try { 
+    await api('/api/admin/ads/' + encodeURIComponent(id), { method: 'DELETE' }); 
+    toast('Ad deleted', 'success'); 
+    addLog('Ad deleted: ' + id, 'warning');
+    loadAds(); 
+  } catch (e) { toast(e.message, 'error'); } 
+};
+
+// Withdrawals
+window.loadWithdrawals = async function() {
+  $('withdrawalsTable').innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">↗</div>Loading withdrawals...</td></tr>';
+  try {
+    const r = await api('/api/admin/withdrawals');
+    cachedWithdrawals = r.data || [];
+    renderWithdrawals();
+    addLog(`Loaded ${cachedWithdrawals.length} withdrawals`, 'success');
+  } catch (e) { $('withdrawalsTable').innerHTML = `<tr><td colspan="7" class="empty">${esc(e.message)}</td></tr>`; toast(e.message, 'error'); }
+};
+window.filterWithdrawals = function(filter, el) {
+  withdrawFilter = filter;
+  document.querySelectorAll('#page-withdrawals .tab').forEach(t => t.classList.remove('active'));
+  if (el) el.classList.add('active');
+  renderWithdrawals();
+};
+function renderWithdrawals() {
+  let rows = cachedWithdrawals;
+  if (withdrawFilter !== 'all') rows = rows.filter(w => w.status === withdrawFilter);
+  if (!rows.length) { $('withdrawalsTable').innerHTML = `<tr><td colspan="7" class="empty"><div class="empty-icon">↗</div>No ${withdrawFilter !== 'all' ? withdrawFilter : ''} withdrawals</td></tr>`; return; }
+  $('withdrawalsTable').innerHTML = rows.map(w => {
+    const pending = w.status === 'pending';
+    return `<tr><td><code>${esc(w.telegramId || w.userId)}</code></td><td><strong>${usd(w.amount)}</strong></td><td>${esc(w.method)}</td><td>${esc(w.account)}</td><td>${esc(w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '—')}</td><td><span class="badge ${pending ? 'badge-warning' : w.status === 'approved' ? 'badge-success' : 'badge-error'}">${esc(w.status)}</span></td><td>${pending ? `<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-success btn-sm" onclick="processWithdrawal('${esc(w.id)}','approved')">Approve</button><button class="btn btn-error btn-sm" onclick="processWithdrawal('${esc(w.id)}','rejected')">Reject</button></div>` : '<span style="color:var(--text-muted);font-size:12px">Processed</span>'}</td></tr>`;
+  }).join('');
+}
+window.processWithdrawal = async function(id, status) {
+  const act = status === 'approved' ? 'approve' : 'reject';
+  if (!confirm(`Are you sure you want to ${act} this withdrawal?`)) return;
+  try { 
+    await api('/api/admin/withdrawals/' + encodeURIComponent(id), { method: 'POST', body: JSON.stringify({ status }) }); 
+    toast(`Withdrawal ${act}d`, 'success'); 
+    addLog(`Withdrawal ${id} ${act}d`, status === 'approved' ? 'success' : 'warning');
+    loadWithdrawals(); 
+    loadDashboard(); 
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+// Payments
+window.loadPayments = async function() {
+  try { 
+    const r = await api('/api/admin/payment-settings'); 
+    const d = r.data || {}; 
+    $('payUsdt').checked = d.USDT?.enabled === true; 
+    $('payLtc').checked = d.LTC?.enabled === true; 
+    $('payEth').checked = d.ETH?.enabled === true; 
+    addLog('Payment settings loaded', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+};
+window.savePayments = async function() {
+  const payload = { USDT: { enabled: $('payUsdt').checked }, LTC: { enabled: $('payLtc').checked }, ETH: { enabled: $('payEth').checked } };
+  try { 
+    await api('/api/admin/payment-settings', { method: 'PUT', body: JSON.stringify(payload) }); 
+    toast('Payment settings saved', 'success'); 
+    addLog('Payment settings updated', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+// Settings
+window.loadSettings = async function() {
+  try { 
+    const r = await api('/api/admin/settings'); 
+    const d = r.data || {}; 
+    $('settingAppName').value = d.appName || 'EarnWallet'; 
+    $('settingMinWithdraw').value = ((d.minWithdraw || 100) / 110).toFixed(3); 
+    $('settingSupport').value = d.supportUrl || ''; 
+    $('settingMaintenanceMessage').value = d.maintenanceMessage || ''; 
+    $('settingMaintenance').checked = d.maintenance === true;
+    $('settingReferralBonus').value = ((d.referralBonus || 10) / 110).toFixed(3);
+    $('settingRequiredRefs').value = d.requiredSuccessfulReferrals || 10;
+    addLog('Settings loaded', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+};
+window.saveSettings = async function(ev) {
+  ev.preventDefault();
+  const payload = { 
+    appName: $('settingAppName').value.trim(), 
+    minWithdraw: Number($('settingMinWithdraw').value) * 110, 
+    supportUrl: $('settingSupport').value.trim(), 
+    maintenanceMessage: $('settingMaintenanceMessage').value.trim(), 
+    maintenance: $('settingMaintenance').checked,
+    referralBonus: Number($('settingReferralBonus').value || 0.1) * 110,
+    requiredSuccessfulReferrals: Number($('settingRequiredRefs').value || 10)
+  };
+  if ($('settingMaintenance').checked && !confirm('Maintenance mode will block the user app. Confirm?')) return;
+  try { 
+    await api('/api/admin/settings', { method: 'PUT', body: JSON.stringify(payload) }); 
+    toast('Settings saved successfully', 'success'); 
+    addLog('Application settings updated', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+// Logs
+function loadLogs() {
+  addLog('Activity logs viewed', 'info');
+}
+
+// Backup
+window.downloadBackup = async function() {
+  try {
+    toast('Creating backup...');
+    const res = await fetch('/api/admin/backup', { headers: { Authorization: 'tma ' + initData } });
+    if (!res.ok) throw new Error('Backup failed: ' + res.status);
+    const blob = await res.blob(); 
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); 
+    a.href = url; 
+    a.download = 'earnwallet-backup-' + Date.now() + '.json'; 
+    document.body.appendChild(a); 
+    a.click(); 
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000); 
+    toast('Backup download started', 'success');
+    addLog('Database backup downloaded', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+};
+window.restoreBackup = async function() {
+  const file = $('restoreFile').files[0]; 
+  if (!file) { toast('Select a JSON backup file', 'error'); return; }
+  if (file.size > 9 * 1024 * 1024) { toast('File too large (max 9 MB)', 'error'); return; }
+  if (!confirm('Restore will merge data into the database. Existing documents may be updated. Continue?')) return;
+  try { 
+    const text = await file.text(); 
+    const backup = JSON.parse(text); 
+    if (backup.app !== 'EarnWallet' || backup.formatVersion !== 1 || !backup.collections) throw new Error('Invalid EarnWallet backup file'); 
+    await api('/api/admin/restore', { method: 'POST', body: JSON.stringify(backup) }); 
+    $('restoreFile').value = ''; 
+    toast('Restore completed successfully', 'success'); 
+    addLog('Database restored from backup', 'warning');
+    loadDashboard(); 
+  } catch (e) { toast(e.message || 'Restore failed', 'error'); }
+};
+
+// Init
+loadDashboard();
+})();
+</script>
+</body>
+</html>
