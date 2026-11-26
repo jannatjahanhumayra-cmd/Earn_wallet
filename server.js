@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const express = require('express');
@@ -1024,37 +1023,38 @@ app.post('/api/tasks/:id/submit', telegramAuth, async (req, res) => {
     }
 
     const proof = String(req.body.proof || '').trim().slice(0, 1000);
+    const proofImageDataUrl = String(req.body.proofImageDataUrl || '').trim().slice(0, 500000);
 
-    if (task.data().requiresProof && !proof) {
+    if (task.data().requiresProof && !proof && !proofImageDataUrl) {
       return res.status(400).json({
         success: false,
-        error: 'Please provide task proof.'
+        error: 'Please provide task proof (text or screenshot).'
       });
     }
 
-    const ref = db.collection('taskSubmissions')
-      .doc(`${uid}_${req.params.id}`);
+    const ref = db.collection('taskSubmissions').doc(`${uid}_${req.params.id}`);
 
     await db.runTransaction(async tx => {
-      const [old, user] = await Promise.all([
+      const [old, userDoc] = await Promise.all([
         tx.get(ref),
         tx.get(userRef(db, uid))
       ]);
 
       if (old.exists) throw new Error('ALREADY_SUBMITTED');
-      if (!user.exists) throw new Error('USER_NOT_FOUND');
+      if (!userDoc.exists) throw new Error('USER_NOT_FOUND');
 
       tx.create(ref, {
         userId: uid,
         taskId: req.params.id,
         proof,
+        proofImageDataUrl: proofImageDataUrl || null,
         status: 'pending',
         reward: Number(task.data().reward || 0),
         createdAt: new Date().toISOString()
       });
 
       tx.update(userRef(db, uid), {
-        pendingTasks: Number(user.data().pendingTasks || 0) + 1
+        pendingTasks: Number(userDoc.data().pendingTasks || 0) + 1
       });
     });
 
@@ -1533,6 +1533,8 @@ app.post('/api/admin/tasks', adminAuth, async (req, res) => {
     const url = String(req.body.url || '').trim();
     const reward = Number(req.body.reward);
     const requiresProof = req.body.requiresProof === true;
+    const category = String(req.body.category || 'Other').trim();
+    const description = String(req.body.description || '').trim().slice(0, 1200);
 
     if (!title || !Number.isFinite(reward) || reward < 0 || reward > 100000) {
       return res.status(400).json({
@@ -1543,7 +1545,6 @@ app.post('/api/admin/tasks', adminAuth, async (req, res) => {
 
     if (url) {
       const parsed = new URL(url);
-
       if (!['http:', 'https:'].includes(parsed.protocol)) {
         return res.status(400).json({
           success: false,
@@ -1558,8 +1559,10 @@ app.post('/api/admin/tasks', adminAuth, async (req, res) => {
       id: ref.id,
       title,
       url,
+      description,
       reward,
       requiresProof,
+      category,
       status: 'active',
       createdAt: new Date().toISOString()
     });
@@ -1579,6 +1582,150 @@ app.delete('/api/admin/tasks/:id', adminAuth, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     sendError(res, error, 'Could not delete task.');
+  }
+});
+
+// ==========================================
+// ADMIN TASK SUBMISSIONS (FIXED)
+// ==========================================
+
+app.get('/api/admin/task-submissions', adminAuth, async (req, res) => {
+  try {
+    const db = getDb();
+
+    const [submissionsSnap, usersSnap, tasksSnap] = await Promise.all([
+      db.collection('taskSubmissions').get(),
+      db.collection('users').get(),
+      db.collection('tasks').get()
+    ]);
+
+    const usersMap = new Map();
+    usersSnap.docs.forEach(d => {
+      const data = d.data();
+      usersMap.set(String(data.telegramId || d.id), data);
+    });
+
+    const tasksMap = new Map();
+    tasksSnap.docs.forEach(d => {
+      tasksMap.set(d.id, d.data());
+    });
+
+    const submissions = submissionsSnap.docs.map(d => {
+      const data = d.data();
+      const user = usersMap.get(data.userId) || {};
+      const task = tasksMap.get(data.taskId) || {};
+
+      return {
+        id: d.id,
+        ...data,
+        userName: [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Telegram User',
+        userUsername: user.username || null,
+        taskTitle: task.title || 'Unknown Task',
+        taskReward: task.reward || 0
+      };
+    }).sort((a, b) =>
+      String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
+    );
+
+    res.json({ success: true, data: submissions });
+  } catch (error) {
+    sendError(res, error, 'Could not load task submissions.');
+  }
+});
+
+app.post('/api/admin/task-submissions/:id', adminAuth, async (req, res) => {
+  try {
+    const db = getDb();
+    const status = req.body.status;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid status. Use approved or rejected.'
+      });
+    }
+
+    const submissionRef = db.collection('taskSubmissions').doc(req.params.id);
+
+    await db.runTransaction(async tx => {
+      const submission = await tx.get(submissionRef);
+
+      if (!submission.exists) throw new Error('NOT_FOUND');
+
+      const subData = submission.data();
+
+      if (subData.status !== 'pending') {
+        throw new Error('ALREADY_REVIEWED');
+      }
+
+      const userRef = db.collection('users').doc(subData.userId);
+      const user = await tx.get(userRef);
+
+      if (!user.exists) throw new Error('USER_NOT_FOUND');
+
+      const userData = user.data();
+      const now = new Date().toISOString();
+      const reward = Number(subData.reward || 0);
+
+      tx.update(submissionRef, {
+        status,
+        reviewedAt: now,
+        reviewedBy: req.adminUser?.id || 'admin'
+      });
+
+      if (status === 'approved' && reward > 0) {
+        const day = todayKey();
+        const todayEarnings = userData.earningsDate === day
+          ? Number(userData.todayEarnings || 0) + reward
+          : reward;
+
+        tx.update(userRef, {
+          balance: Number(userData.balance || 0) + reward,
+          totalEarnings: Number(userData.totalEarnings || 0) + reward,
+          todayEarnings,
+          earningsDate: day,
+          completedTasks: Number(userData.completedTasks || 0) + 1,
+          pendingTasks: Math.max(0, Number(userData.pendingTasks || 0) - 1)
+        });
+
+        const transactionRef = db.collection('transactions').doc();
+        tx.create(transactionRef, {
+          userId: subData.userId,
+          type: 'task_reward',
+          amount: reward,
+          status: 'completed',
+          note: `Task reward: ${subData.taskId}`,
+          referenceId: req.params.id,
+          createdAt: now
+        });
+      } else {
+        tx.update(userRef, {
+          pendingTasks: Math.max(0, Number(userData.pendingTasks || 0) - 1)
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Submission ${status} successfully.`
+    });
+  } catch (error) {
+    const map = {
+      NOT_FOUND: [404, 'Submission not found.'],
+      ALREADY_REVIEWED: [409, 'Submission already reviewed.'],
+      USER_NOT_FOUND: [404, 'User not found.']
+    };
+
+    const [statusCode, message] = map[error.message] || [
+      500, 'Could not process submission.'
+    ];
+
+    if (statusCode === 500) console.error(error);
+
+    res.status(statusCode).json({
+      success: false,
+      error: message
+    });
   }
 });
 
